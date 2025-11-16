@@ -4,6 +4,7 @@
 #include "ddebug.h"
 
 #include <ngx_http_wasm.h>
+#include <ngx_http_wasm_upstream.h>
 #include <ngx_proxy_wasm_properties.h>
 #if (NGX_WASM_LUA)
 #include <ngx_wasm_lua.h>
@@ -224,6 +225,15 @@ static ngx_command_t  ngx_http_wasm_module_cmds[] = {
       NGX_HTTP_LOC_CONF_OFFSET,
       offsetof(ngx_http_wasm_loc_conf_t, pwm_log_dispatch_errors),
       NULL },
+
+    /* upstream select */
+
+    { ngx_string("wasm_upstream_select"),
+    NGX_HTTP_UPS_CONF|NGX_CONF_NOARGS,
+    ngx_http_wasm_upstream_select_directive,
+    0,
+    0,
+    NULL },
 
     /* misc */
 

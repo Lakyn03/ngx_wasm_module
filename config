@@ -224,6 +224,7 @@ NGX_HTTP_WASM_DEPS="\
     $ngx_addon_dir/src/http/ngx_http_wasm_util.h \
     $ngx_addon_dir/src/http/ngx_http_wasm_headers.h \
     $ngx_addon_dir/src/http/ngx_http_wasm_trailers.h \
+    $ngx_addon_dir/src/http/ngx_http_wasm_upstream.h \
     $ngx_addon_dir/src/http/proxy_wasm/ngx_http_proxy_wasm.h \
     $ngx_addon_dir/src/http/proxy_wasm/ngx_http_proxy_wasm_dispatch.h"
 
@@ -239,6 +240,7 @@ NGX_HTTP_WASM_SRCS="\
     $ngx_addon_dir/src/http/ngx_http_wasm_host.c \
     $ngx_addon_dir/src/http/ngx_http_wasm_util.c \
     $ngx_addon_dir/src/http/ngx_http_wasm_escape.c \
+    $ngx_addon_dir/src/http/ngx_http_wasm_upstream.c \
     $ngx_addon_dir/src/http/proxy_wasm/ngx_http_proxy_wasm.c \
     $ngx_addon_dir/src/http/proxy_wasm/ngx_http_proxy_wasm_dispatch.c"
 
