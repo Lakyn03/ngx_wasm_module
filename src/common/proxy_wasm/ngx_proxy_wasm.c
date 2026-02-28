@@ -8,6 +8,7 @@
 #include <ngx_proxy_wasm_foreign_call.h>
 #ifdef NGX_WASM_HTTP
 #include <ngx_http_proxy_wasm.h>
+#include <ngx_http_wasm_upstream.h>
 #endif
 
 
@@ -828,6 +829,10 @@ ngx_proxy_wasm_run_step(ngx_proxy_wasm_exec_t *pwexec,
     case NGX_PROXY_WASM_STEP_RESP_TRAILERS:
 #endif
         rc = filter->subsystem->resume(pwexec, step, &action);
+        break;
+    case NGX_PROXY_WASM_STEP_UPSTREAM:
+        ngx_proxy_wasm_on_upstream_select(pwexec);
+        rc = NGX_OK;
         break;
     case NGX_PROXY_WASM_STEP_LOG:
         ngx_proxy_wasm_on_log(pwexec);
@@ -1708,6 +1713,8 @@ ngx_proxy_wasm_filter_init_abi(ngx_proxy_wasm_filter_t *filter)
         get_func(filter, "proxy_on_http_response_trailers");
     filter->proxy_on_http_response_metadata =
         get_func(filter, "proxy_on_http_response_metadata");
+    filter->proxy_on_http_upstream_select =
+        get_func(filter, "proxy_on_http_upstream_select");
 
     if (filter->abi_version < NGX_PROXY_WASM_VNEXT) {
         /* 0.1.0 - 0.2.1 */
@@ -1727,6 +1734,8 @@ ngx_proxy_wasm_filter_init_abi(ngx_proxy_wasm_filter_t *filter)
             get_func(filter, "proxy_on_response_trailers");
         filter->proxy_on_http_response_metadata =
             get_func(filter, "proxy_on_response_metadata");
+        filter->proxy_on_http_upstream_select =
+            get_func(filter, "proxy_on_upstream_select");
     }
 
     /* shared queue */

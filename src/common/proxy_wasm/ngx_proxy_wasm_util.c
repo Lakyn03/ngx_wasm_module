@@ -35,6 +35,7 @@ static ngx_str_t  ngx_proxy_wasm_steplist[] = {
     ngx_string("on_request_headers"),
     ngx_string("on_request_body"),
     ngx_string("on_request_trailers"),
+    ngx_string("on_upstream_select"),
     ngx_string("on_response_headers"),
     ngx_string("on_response_body"),
     ngx_string("on_response_tailers"),

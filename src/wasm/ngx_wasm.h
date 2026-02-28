@@ -19,8 +19,8 @@
 #define NGX_V8_CONF                  0x80000000
 #define NGX_METRICS_CONF             0x16000000
 
-#define NGX_WASM_DONE_PHASE          15
-#define NGX_WASM_BACKGROUND_PHASE    16
+#define NGX_WASM_DONE_PHASE          16
+#define NGX_WASM_BACKGROUND_PHASE    17
 
 #define NGX_WASM_CONF_ERR_NO_WASM                                            \
     "is specified but config has no \"wasm\" section"

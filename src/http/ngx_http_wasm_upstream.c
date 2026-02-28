@@ -109,3 +109,14 @@ ngx_http_wasm_upstream_notify_peer(ngx_peer_connection_t *pc, void *data,
     (void) data;
     (void) type;
 }
+
+
+void
+ngx_proxy_wasm_on_upstream_select(ngx_proxy_wasm_exec_t *pwexec)
+{
+    ngx_proxy_wasm_filter_t  *filter = pwexec->filter;
+    ngx_wavm_instance_t      *instance = ngx_proxy_wasm_pwexec2instance(pwexec);
+
+    (void) ngx_wavm_instance_call_funcref(instance, filter->proxy_on_http_upstream_select,
+                                          NULL, pwexec->id);
+}
