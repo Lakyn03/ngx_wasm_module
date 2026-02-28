@@ -14,6 +14,7 @@
 #include <ngx_proxy_wasm_foreign_call.h>
 #ifdef NGX_WASM_HTTP
 #include <ngx_http_proxy_wasm.h>
+#include <ngx_http_wasm_upstream.h>
 #endif
 
 
@@ -1897,6 +1898,43 @@ ngx_proxy_wasm_hfuncs_get_configuration(ngx_wavm_instance_t *instance,
 }
 
 
+static ngx_int_t
+ngx_proxy_wasm_hfuncs_proxy_set_upstream(ngx_wavm_instance_t *instance,
+    wasm_val_t args[], wasm_val_t rets[])
+{
+    u_char                   *addr;
+    uint32_t                  addr_size, port;
+    ngx_str_t                 addr_str;
+    ngx_http_request_t       *r;
+    ngx_proxy_wasm_exec_t    *pwexec;
+    ngx_http_wasm_req_ctx_t  *rctx;
+
+    addr_size = args[1].of.i32;
+    addr = NGX_WAVM_HOST_LIFT_SLICE(instance, args[0].of.i32, addr_size);
+    port = args[2].of.i32;
+
+    pwexec = ngx_proxy_wasm_instance2pwexec(instance);
+    rctx = ngx_http_proxy_wasm_get_rctx(instance);
+    r = rctx->r;
+
+    addr_str.len = addr_size;
+    addr_str.data = addr;
+
+    if (!r || !r->upstream || !r->upstream->peer.data) {
+        return ngx_proxy_wasm_result_err(rets);
+    }
+
+    ngx_int_t rc = ngx_http_wasm_set_upstream(r->upstream->peer.data,
+                                              &addr_str, port,
+                                              pwexec->pool);
+    if (rc != NGX_OK) {
+        return ngx_proxy_wasm_result_err(rets);
+    }
+
+    return ngx_proxy_wasm_result_ok(rets);
+}
+
+
 /* NOP */
 
 
@@ -2287,6 +2325,12 @@ static ngx_wavm_host_func_def_t  ngx_proxy_wasm_hfuncs[] = {
     { ngx_string("proxy_clear_route_cache"),             /* 0.1.0 */
       &ngx_proxy_wasm_hfuncs_nop,                        /* NYI */
       NULL,
+      ngx_wavm_arity_i32 },
+
+    /* upstream */
+    { ngx_string("proxy_set_upstream"),
+      &ngx_proxy_wasm_hfuncs_proxy_set_upstream,
+      ngx_wavm_arity_i32x3,
       ngx_wavm_arity_i32 },
 
     ngx_wavm_hfunc_null

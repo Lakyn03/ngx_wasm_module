@@ -28,6 +28,7 @@ void ngx_http_wasm_upstream_free_peer(ngx_peer_connection_t *pc,
 void ngx_http_wasm_upstream_notify_peer(ngx_peer_connection_t *pc,
     void *data, ngx_uint_t type);
 void ngx_proxy_wasm_on_upstream_select(ngx_proxy_wasm_exec_t *pwexec);
-ngx_int_t ngx_http_wasm_set_upstream(ngx_http_wasm_upstream_peer_data_t  *up, ngx_str_t *addr, ngx_pool_t *pool);
+ngx_int_t ngx_http_wasm_set_upstream(ngx_http_wasm_upstream_peer_data_t *up,
+    ngx_str_t *addr, ngx_int_t port, ngx_pool_t *pool);
 
 #endif //NGINX_WASMX_INDEX_NGX_HTTP_WASM_UPSTREAM_H
