@@ -9,9 +9,15 @@
 char *
 ngx_http_wasm_upstream_select_directive(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 {
+    ngx_http_wasm_srv_conf_t      *wscf = conf;
     ngx_http_upstream_srv_conf_t  *uscf;
 
     uscf = ngx_http_conf_get_module_srv_conf(cf, ngx_http_upstream_module);
+
+    wscf->original_init_upstream = uscf->peer.init_upstream
+                                   ? uscf->peer.init_upstream
+                                   : ngx_http_upstream_init_round_robin;
+
     uscf->peer.init_upstream = ngx_http_wasm_upstream_init;
 
     return NGX_CONF_OK;
@@ -21,6 +27,15 @@ ngx_http_wasm_upstream_select_directive(ngx_conf_t *cf, ngx_command_t *cmd, void
 ngx_int_t
 ngx_http_wasm_upstream_init(ngx_conf_t *cf, ngx_http_upstream_srv_conf_t *us)
 {
+    ngx_http_wasm_srv_conf_t  *wscf;
+
+    wscf = ngx_http_conf_upstream_srv_conf(us, ngx_http_wasm_module);
+
+    if (wscf->original_init_upstream(cf, us) != NGX_OK) {
+        return NGX_ERROR;
+    }
+
+    wscf->original_init_peer = us->peer.init;
     us->peer.init = ngx_http_wasm_upstream_init_peer;
 
     return NGX_OK;
@@ -31,12 +46,23 @@ ngx_int_t
 ngx_http_wasm_upstream_init_peer(ngx_http_request_t *r,
     ngx_http_upstream_srv_conf_t *us)
 {
+    ngx_http_wasm_srv_conf_t            *wscf;
     ngx_http_wasm_upstream_peer_data_t  *up;
+
+    wscf = ngx_http_conf_upstream_srv_conf(us, ngx_http_wasm_module);
 
     up = ngx_pcalloc(r->pool, sizeof(ngx_http_wasm_upstream_peer_data_t));
     if (up == NULL) {
         return NGX_ERROR;
     }
+
+    if (wscf->original_init_peer(r, us) != NGX_OK) {
+        return NGX_ERROR;
+    }
+
+    up->data = r->upstream->peer.data;
+    up->original_get_peer = r->upstream->peer.get;
+    up->original_free_peer = r->upstream->peer.free;
 
     up->request = r;
 
@@ -48,16 +74,16 @@ ngx_http_wasm_upstream_init_peer(ngx_http_request_t *r,
     return NGX_OK;
 }
 
-// todo - placeholder, only for testing
+
 ngx_int_t
 ngx_http_wasm_upstream_get_peer(ngx_peer_connection_t *pc, void *data)
 {
+    ngx_int_t                            rc = NGX_ERROR;
+    ngx_http_request_t                  *r;
+    ngx_http_wasm_req_ctx_t             *rctx;
     ngx_http_wasm_upstream_peer_data_t  *up = data;
-    ngx_str_t  addr = ngx_string("127.0.0.1:8001");
-    ngx_pool_t *pool = up->request->pool;
-    ngx_http_request_t  *r = up->request;
-    ngx_http_wasm_req_ctx_t  *rctx = NULL;
-    ngx_int_t rc = NGX_ERROR;
+
+    r = up->request;
 
     rc = ngx_http_wasm_rctx(r, &rctx);
     if (rc != NGX_OK) {
@@ -70,18 +96,17 @@ ngx_http_wasm_upstream_get_peer(ngx_peer_connection_t *pc, void *data)
         return NGX_ERROR;
     }
 
-    // todo fallback to default balancer
-    if (up->sockaddr == NULL) {
-        ngx_http_wasm_set_upstream(up, &addr, pool);
+    if (up->sockaddr && up->socklen) {
+        pc->sockaddr = up->sockaddr;
+        pc->socklen = up->socklen;
+        pc->name = up->name;
+        pc->cached = 0;
+        pc->connection = NULL;
+
+        return NGX_OK;
     }
 
-    pc->sockaddr = up->sockaddr;
-    pc->socklen = up->socklen;
-    pc->name = up->name;
-    pc->cached = 0;
-    pc->connection = NULL;
-
-    return NGX_OK;
+    return up->original_get_peer(pc, up->data);
 }
 
 
@@ -89,9 +114,13 @@ void
 ngx_http_wasm_upstream_free_peer(ngx_peer_connection_t *pc, void *data,
     ngx_uint_t state)
 {
-    (void) pc;
-    (void) data;
-    (void) state;
+    ngx_http_wasm_upstream_peer_data_t  *up = data;
+
+    if (up->sockaddr && up->socklen) {
+        return;
+    }
+
+    up->original_free_peer(pc, up->data, state);
 }
 
 

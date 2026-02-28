@@ -19,6 +19,7 @@
 
 static void *ngx_http_wasm_create_main_conf(ngx_conf_t *cf);
 static char *ngx_http_wasm_init_main_conf(ngx_conf_t *cf, void *conf);
+static void *ngx_http_wasm_create_srv_conf(ngx_conf_t *cf);
 static void *ngx_http_wasm_create_loc_conf(ngx_conf_t *cf);
 static char *ngx_http_wasm_merge_loc_conf(ngx_conf_t *cf, void *parent,
     void *child);
@@ -236,7 +237,7 @@ static ngx_command_t  ngx_http_wasm_module_cmds[] = {
     { ngx_string("wasm_upstream_select"),
     NGX_HTTP_UPS_CONF|NGX_CONF_NOARGS,
     ngx_http_wasm_upstream_select_directive,
-    0,
+    NGX_HTTP_SRV_CONF_OFFSET,
     0,
     NULL },
 
@@ -258,7 +259,7 @@ static ngx_http_module_t  ngx_http_wasm_module_ctx = {
     ngx_http_wasm_postconfig,            /* postconfiguration */
     ngx_http_wasm_create_main_conf,      /* create main configuration */
     ngx_http_wasm_init_main_conf,        /* init main configuration */
-    NULL,                                /* create server configuration */
+    ngx_http_wasm_create_srv_conf,       /* create server configuration */
     NULL,                                /* merge server configuration */
     ngx_http_wasm_create_loc_conf,       /* create location configuration */
     ngx_http_wasm_merge_loc_conf         /* merge location configuration */
@@ -347,6 +348,20 @@ ngx_http_wasm_init_main_conf(ngx_conf_t *cf, void *conf)
     }
 
     return NGX_CONF_OK;
+}
+
+
+static void *
+ngx_http_wasm_create_srv_conf(ngx_conf_t *cf)
+{
+    ngx_http_wasm_srv_conf_t  *scf;
+
+    scf = ngx_pcalloc(cf->pool, sizeof(ngx_http_wasm_srv_conf_t));
+    if (scf == NULL) {
+        return NULL;
+    }
+
+    return scf;
 }
 
 

@@ -6,6 +6,10 @@
 typedef struct {
     ngx_http_request_t                 *request;
 
+    void                              *data;
+    ngx_event_get_peer_pt              original_get_peer;
+    ngx_event_free_peer_pt             original_free_peer;
+
     struct sockaddr                    *sockaddr;
     socklen_t                           socklen;
     ngx_addr_t                         *local;

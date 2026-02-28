@@ -109,6 +109,12 @@ typedef struct {
 
 
 typedef struct {
+    ngx_http_upstream_init_pt          original_init_upstream;
+    ngx_http_upstream_init_peer_pt     original_init_peer;
+} ngx_http_wasm_srv_conf_t;
+
+
+typedef struct {
     ngx_wavm_t                        *vm;
     ngx_wasm_ops_t                    *ops;
     ngx_queue_t                        plans;
