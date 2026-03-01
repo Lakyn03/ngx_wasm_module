@@ -117,6 +117,9 @@ ngx_http_wasm_upstream_free_peer(ngx_peer_connection_t *pc, void *data,
     ngx_http_wasm_upstream_peer_data_t  *up = data;
 
     if (up->sockaddr && up->socklen) {
+        if (pc->tries) {
+            pc->tries--;
+        }
         return;
     }
 
