@@ -150,6 +150,14 @@ typedef enum {
 
 
 typedef enum {
+    NGX_PROXY_WASM_LAST_UPSTREAM_OK = 0,
+    NGX_PROXY_WASM_LAST_UPSTREAM_NEXT = 1,
+    NGX_PROXY_WASM_LAST_UPSTREAM_FAILED = 2,
+    NGX_PROXY_WASM_LAST_UPSTREAM_NO_INFO = 3,
+} ngx_proxy_wasm_last_upstream_state_e;
+
+
+typedef enum {
     NGX_PROXY_WASM_FOREIGN_RESOLVE_LUA = 0,
 } ngx_proxy_wasm_foreign_function_e;
 

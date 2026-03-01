@@ -832,8 +832,7 @@ ngx_proxy_wasm_run_step(ngx_proxy_wasm_exec_t *pwexec,
         rc = filter->subsystem->resume(pwexec, step, &action);
         break;
     case NGX_PROXY_WASM_STEP_UPSTREAM:
-        ngx_proxy_wasm_on_upstream_select(pwexec);
-        rc = NGX_OK;
+        rc = ngx_proxy_wasm_on_upstream_select(pwexec);
         break;
     case NGX_PROXY_WASM_STEP_LOG:
         ngx_proxy_wasm_on_log(pwexec);

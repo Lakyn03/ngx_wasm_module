@@ -65,6 +65,7 @@ ngx_http_wasm_upstream_init_peer(ngx_http_request_t *r,
     up->original_free_peer = r->upstream->peer.free;
 
     up->request = r;
+    up->last_peer_state = NGX_PROXY_WASM_LAST_UPSTREAM_NO_INFO;
 
     r->upstream->peer.data = up;
     r->upstream->peer.get = ngx_http_wasm_upstream_get_peer;
@@ -117,6 +118,7 @@ ngx_http_wasm_upstream_free_peer(ngx_peer_connection_t *pc, void *data,
     ngx_http_wasm_upstream_peer_data_t  *up = data;
 
     if (up->sockaddr && up->socklen) {
+        up->last_peer_state = state;
         if (pc->tries) {
             pc->tries--;
         }
@@ -137,14 +139,45 @@ ngx_http_wasm_upstream_notify_peer(ngx_peer_connection_t *pc, void *data,
 }
 
 
-void
+ngx_int_t
 ngx_proxy_wasm_on_upstream_select(ngx_proxy_wasm_exec_t *pwexec)
 {
-    ngx_proxy_wasm_filter_t  *filter = pwexec->filter;
-    ngx_wavm_instance_t      *instance = ngx_proxy_wasm_pwexec2instance(pwexec);
+    ngx_http_request_t                   *r;
+    ngx_wavm_instance_t                  *instance;
+    ngx_http_wasm_req_ctx_t              *rctx;
+    ngx_proxy_wasm_filter_t              *filter;
+    ngx_http_wasm_upstream_peer_data_t   *up;
+    ngx_proxy_wasm_last_upstream_state_e  state;
+
+    instance = ngx_proxy_wasm_pwexec2instance(pwexec);
+    filter  = pwexec->filter;
+    rctx = ngx_http_proxy_wasm_get_rctx(instance);
+    r = rctx->r;
+
+    if (r->upstream == NULL) {
+        return NGX_ERROR;
+    }
+
+    up = rctx->r->upstream->peer.data;
+    switch (up->last_peer_state) {
+    case 0:     /* should never happen */
+        state = NGX_PROXY_WASM_LAST_UPSTREAM_OK;
+        break;
+    case NGX_PEER_NEXT:
+        state = NGX_PROXY_WASM_LAST_UPSTREAM_NEXT;
+        break;
+    case NGX_PEER_FAILED:
+        state = NGX_PROXY_WASM_LAST_UPSTREAM_FAILED;
+        break;
+    default:
+        state = NGX_PROXY_WASM_LAST_UPSTREAM_NO_INFO;
+        break;
+    }
 
     (void) ngx_wavm_instance_call_funcref(instance, filter->proxy_on_http_upstream_select,
-                                          NULL, pwexec->id);
+                                          NULL, pwexec->id, state);
+
+    return NGX_OK;
 }
 
 
