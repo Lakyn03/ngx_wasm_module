@@ -648,6 +648,7 @@ ngx_proxy_wasm_resume(ngx_proxy_wasm_ctx_t *pwctx,
     case NGX_PROXY_WASM_STEP_DONE:
     case NGX_PROXY_WASM_STEP_RESP_BODY:
     case NGX_PROXY_WASM_STEP_DISPATCH_RESPONSE:
+    case NGX_PROXY_WASM_STEP_UPSTREAM:
         break;
     case NGX_PROXY_WASM_STEP_RESP_HEADERS:
         if (pwctx->last_completed_step < NGX_PROXY_WASM_STEP_RESP_HEADERS) {
