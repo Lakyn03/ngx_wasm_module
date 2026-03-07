@@ -97,6 +97,16 @@ ngx_http_wasm_upstream_get_peer(ngx_peer_connection_t *pc, void *data)
         return NGX_ERROR;
     }
 
+    if (rctx->local_resp_status) {
+        ngx_http_wasm_flush_local_response(rctx);
+
+        if (r->header_sent) {
+            r->upstream->header_sent = 1;
+        }
+
+        return NGX_ERROR;
+    }
+
     if (up->sockaddr && up->socklen) {
         pc->sockaddr = up->sockaddr;
         pc->socklen = up->socklen;
