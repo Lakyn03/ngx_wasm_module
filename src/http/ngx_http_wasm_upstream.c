@@ -125,13 +125,28 @@ void
 ngx_http_wasm_upstream_free_peer(ngx_peer_connection_t *pc, void *data,
     ngx_uint_t state)
 {
+    ngx_int_t                           rc;
+    ngx_http_request_t                  *r;
+    ngx_http_wasm_req_ctx_t             *rctx;
     ngx_http_wasm_upstream_peer_data_t  *up = data;
 
     if (up->sockaddr && up->socklen) {
+        r = up->request;
+        rc = ngx_http_wasm_rctx(r, &rctx);
+        if (rc != NGX_OK) {
+            return;
+        }
+
         up->last_peer_state = state;
         if (pc->tries) {
             pc->tries--;
         }
+
+        if (state == 0) {
+            ngx_wasm_ops_resume(&rctx->opctx,
+                            NGX_HTTP_WASM_UPSTREAM_PHASE);
+        }
+
         return;
     }
 
@@ -170,7 +185,7 @@ ngx_proxy_wasm_on_upstream_select(ngx_proxy_wasm_exec_t *pwexec)
 
     up = rctx->r->upstream->peer.data;
     switch (up->last_peer_state) {
-    case 0:     /* should never happen */
+    case 0:
         state = NGX_PROXY_WASM_LAST_UPSTREAM_OK;
         break;
     case NGX_PEER_NEXT:
