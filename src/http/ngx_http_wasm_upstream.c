@@ -141,6 +141,9 @@ ngx_http_wasm_upstream_free_peer(ngx_peer_connection_t *pc, void *data,
             pc->tries--;
         }
 
+        up->sockaddr = NULL;
+        up->socklen = 0;
+
         if (state == 0) {
             ngx_proxy_wasm_upstream_resume(rctx);
         }
