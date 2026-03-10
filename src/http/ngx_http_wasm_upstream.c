@@ -91,8 +91,7 @@ ngx_http_wasm_upstream_get_peer(ngx_peer_connection_t *pc, void *data)
         return NGX_ERROR;
     }
 
-    rc = ngx_wasm_ops_resume(&rctx->opctx,
-                             NGX_HTTP_WASM_UPSTREAM_PHASE);
+    rc = ngx_proxy_wasm_upstream_resume(rctx);
     if (rc == NGX_ERROR) {
         return NGX_ERROR;
     }
@@ -143,8 +142,7 @@ ngx_http_wasm_upstream_free_peer(ngx_peer_connection_t *pc, void *data,
         }
 
         if (state == 0) {
-            ngx_wasm_ops_resume(&rctx->opctx,
-                            NGX_HTTP_WASM_UPSTREAM_PHASE);
+            ngx_proxy_wasm_upstream_resume(rctx);
         }
 
         return;
@@ -165,44 +163,28 @@ ngx_http_wasm_upstream_notify_peer(ngx_peer_connection_t *pc, void *data,
 
 
 ngx_int_t
-ngx_proxy_wasm_on_upstream_select(ngx_proxy_wasm_exec_t *pwexec)
+ngx_proxy_wasm_upstream_resume(ngx_http_wasm_req_ctx_t *rctx)
 {
-    ngx_http_request_t                   *r;
-    ngx_wavm_instance_t                  *instance;
-    ngx_http_wasm_req_ctx_t              *rctx;
-    ngx_proxy_wasm_filter_t              *filter;
-    ngx_http_wasm_upstream_peer_data_t   *up;
-    ngx_proxy_wasm_last_upstream_state_e  state;
+    ngx_int_t              rc;
+    ngx_proxy_wasm_ctx_t  *pwctx;
+    ngx_proxy_wasm_step_e  step, last_completed_step;
 
-    instance = ngx_proxy_wasm_pwexec2instance(pwexec);
-    filter  = pwexec->filter;
-    rctx = ngx_http_proxy_wasm_get_rctx(instance);
-    r = rctx->r;
-
-    if (r->upstream == NULL) {
-        return NGX_ERROR;
+    pwctx = rctx->data;
+    if (pwctx == NULL) {
+        return NGX_OK;
     }
 
-    up = rctx->r->upstream->peer.data;
-    switch (up->last_peer_state) {
-    case 0:
-        state = NGX_PROXY_WASM_LAST_UPSTREAM_OK;
-        break;
-    case NGX_PEER_NEXT:
-        state = NGX_PROXY_WASM_LAST_UPSTREAM_NEXT;
-        break;
-    case NGX_PEER_FAILED:
-        state = NGX_PROXY_WASM_LAST_UPSTREAM_FAILED;
-        break;
-    default:
-        state = NGX_PROXY_WASM_LAST_UPSTREAM_NO_INFO;
-        break;
-    }
+    step = pwctx->step;
+    last_completed_step = pwctx->last_completed_step;
+    pwctx->phase = ngx_wasm_phase_lookup(&ngx_http_wasm_subsystem,
+                                 NGX_WASM_BACKGROUND_PHASE);
 
-    (void) ngx_wavm_instance_call_funcref(instance, filter->proxy_on_http_upstream_select,
-                                          NULL, pwexec->id, state);
+    rc = ngx_proxy_wasm_resume(pwctx, pwctx->phase, NGX_PROXY_WASM_STEP_UPSTREAM);
 
-    return NGX_OK;
+    pwctx->step = step;
+    pwctx->last_completed_step = last_completed_step;
+
+    return rc;
 }
 
 

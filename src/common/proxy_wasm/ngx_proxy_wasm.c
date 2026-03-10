@@ -8,7 +8,6 @@
 #include <ngx_proxy_wasm_foreign_call.h>
 #ifdef NGX_WASM_HTTP
 #include <ngx_http_proxy_wasm.h>
-#include <ngx_http_wasm_upstream.h>
 #endif
 
 
@@ -831,9 +830,6 @@ ngx_proxy_wasm_run_step(ngx_proxy_wasm_exec_t *pwexec,
 #endif
         rc = filter->subsystem->resume(pwexec, step, &action);
         break;
-    case NGX_PROXY_WASM_STEP_UPSTREAM:
-        rc = ngx_proxy_wasm_on_upstream_select(pwexec);
-        break;
     case NGX_PROXY_WASM_STEP_LOG:
         ngx_proxy_wasm_on_log(pwexec);
         rc = NGX_OK;
@@ -846,6 +842,9 @@ ngx_proxy_wasm_run_step(ngx_proxy_wasm_exec_t *pwexec,
         rc = filter->subsystem->resume(pwexec, step, &action);
         break;
     case NGX_PROXY_WASM_STEP_FOREIGN_CALLBACK:
+        rc = filter->subsystem->resume(pwexec, step, &action);
+        break;
+    case NGX_PROXY_WASM_STEP_UPSTREAM:
         rc = filter->subsystem->resume(pwexec, step, &action);
         break;
     case NGX_PROXY_WASM_STEP_TICK:

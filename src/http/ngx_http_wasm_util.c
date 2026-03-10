@@ -492,7 +492,6 @@ ngx_http_wasm_ops_add_filter(ngx_wasm_ops_plan_t *plan,
     op->on_phases = (1 << NGX_HTTP_REWRITE_PHASE)
                     | (1 << NGX_HTTP_ACCESS_PHASE)
                     | (1 << NGX_HTTP_CONTENT_PHASE)
-                    | (1 << NGX_HTTP_WASM_UPSTREAM_PHASE)
                     | (1 << NGX_HTTP_WASM_HEADER_FILTER_PHASE)
                     | (1 << NGX_HTTP_WASM_BODY_FILTER_PHASE)
 #ifdef NGX_WASM_RESPONSE_TRAILERS

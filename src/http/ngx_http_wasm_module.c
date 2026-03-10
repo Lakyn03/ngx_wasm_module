@@ -73,41 +73,36 @@ static ngx_wasm_phase_t  ngx_http_wasm_phases[] = {
       4,
       (1 << NGX_HTTP_CONTENT_PHASE) },
 
-    { ngx_string("upstream"),
-    NGX_HTTP_WASM_UPSTREAM_PHASE,
-    5,
-    (1 << NGX_HTTP_WASM_UPSTREAM_PHASE) },
-
     { ngx_string("header_filter"),
       NGX_HTTP_WASM_HEADER_FILTER_PHASE,
-      6,
+      5,
       (1 << NGX_HTTP_WASM_HEADER_FILTER_PHASE) },
 
     { ngx_string("body_filter"),
       NGX_HTTP_WASM_BODY_FILTER_PHASE,
-      7,
+      6,
       (1 << NGX_HTTP_WASM_BODY_FILTER_PHASE) },
 
 #ifdef NGX_WASM_RESPONSE_TRAILERS
     { ngx_string("trailer_filter"),
       NGX_HTTP_WASM_TRAILER_FILTER_PHASE,
-      8,
+      7,
       (1 << NGX_HTTP_WASM_TRAILER_FILTER_PHASE) },
 #endif
 
     { ngx_string("log"),
       NGX_HTTP_LOG_PHASE,
-      9,
+      8,
       (1 << NGX_HTTP_LOG_PHASE) },
 
     { ngx_string("done"),
       NGX_WASM_DONE_PHASE,
-      10,
+      9,
       (1 << NGX_WASM_DONE_PHASE) },
 
     { ngx_string("background"),
       NGX_WASM_BACKGROUND_PHASE,
-      11,
+      10,
       (1 << NGX_WASM_BACKGROUND_PHASE) },
 
     { ngx_null_string, 0, 0, 0 }
