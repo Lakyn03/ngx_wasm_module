@@ -198,6 +198,10 @@ ngx_http_wasm_set_upstream(ngx_http_wasm_upstream_peer_data_t  *up,
     u_char    *p;
     ngx_url_t  url;
 
+    if (up->sockaddr && up->socklen) {
+        return NGX_DECLINED;
+    }
+
     ngx_memzero(&url, sizeof(ngx_url_t));
 
     p = ngx_pnalloc(pool, addr->len);
@@ -214,7 +218,7 @@ ngx_http_wasm_set_upstream(ngx_http_wasm_upstream_peer_data_t  *up,
     url.uri_part = 0;
 
     if (ngx_parse_url(pool, &url) != NGX_OK) {
-        return NGX_ERROR;
+        return NGX_DECLINED;
     }
 
     if (url.addrs == NULL || url.addrs[0].sockaddr == NULL) {
