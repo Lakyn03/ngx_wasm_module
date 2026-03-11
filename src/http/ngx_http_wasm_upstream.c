@@ -106,6 +106,10 @@ ngx_http_wasm_upstream_get_peer(ngx_peer_connection_t *pc, void *data)
         return NGX_ERROR;
     }
 
+    if (r->upstream->create_request(r) != NGX_OK) {
+        return NGX_ERROR;
+    }
+
     if (up->sockaddr && up->socklen) {
         pc->sockaddr = up->sockaddr;
         pc->socklen = up->socklen;
