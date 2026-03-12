@@ -115,6 +115,8 @@ ngx_http_wasm_upstream_get_peer(ngx_peer_connection_t *pc, void *data)
         return NGX_ERROR;
     }
 
+    rctx->req_headers_modified = 0;
+
     rc = ngx_proxy_wasm_upstream_resume(rctx, NGX_PROXY_WASM_STEP_UPSTREAM_SELECT);
     if (rc == NGX_ERROR || rc >= NGX_HTTP_SPECIAL_RESPONSE) {
         return NGX_ERROR;
@@ -130,7 +132,8 @@ ngx_http_wasm_upstream_get_peer(ngx_peer_connection_t *pc, void *data)
         return NGX_ERROR;
     }
 
-    if (r->upstream->create_request(r) != NGX_OK) {
+    if (rctx->req_headers_modified
+        && r->upstream->create_request(r) != NGX_OK) {
         return NGX_ERROR;
     }
 
@@ -143,7 +146,7 @@ ngx_http_wasm_upstream_get_peer(ngx_peer_connection_t *pc, void *data)
 
         return NGX_OK;
     }
-    
+
     ngx_wasm_log_error(NGX_LOG_INFO, r->connection->log, 0,
                        "no upstream selected in \"on_upstream_select\"");
 
