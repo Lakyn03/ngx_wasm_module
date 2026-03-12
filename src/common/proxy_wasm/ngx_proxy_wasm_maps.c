@@ -538,6 +538,10 @@ ngx_proxy_wasm_maps_set_path(ngx_wavm_instance_t *instance, ngx_str_t *value,
     r->uri.len = len;
     r->uri.data = value->data;
 
+    r->valid_unparsed_uri = 0;
+    r->valid_location = 0;
+    r->internal = 1;
+
     if (pwctx->path.len) {
         ngx_pfree(pwctx->pool, pwctx->path.data);
         pwctx->path.len = 0;
