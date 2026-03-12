@@ -91,6 +91,8 @@ ngx_http_wasm_upstream_get_peer(ngx_peer_connection_t *pc, void *data)
         return NGX_ERROR;
     }
 
+    rctx->req_headers_modified = 0;
+
     rc = ngx_proxy_wasm_upstream_resume(rctx);
     if (rc == NGX_ERROR) {
         return NGX_ERROR;
@@ -106,7 +108,8 @@ ngx_http_wasm_upstream_get_peer(ngx_peer_connection_t *pc, void *data)
         return NGX_ERROR;
     }
 
-    if (r->upstream->create_request(r) != NGX_OK) {
+    if (rctx->req_headers_modified
+        && r->upstream->create_request(r) != NGX_OK) {
         return NGX_ERROR;
     }
 

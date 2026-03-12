@@ -76,6 +76,7 @@ struct ngx_http_wasm_req_ctx_s {
     unsigned                           resp_content_sent:1;     /* has started sending output (may have yielded) */
     unsigned                           resp_finalized:1;        /* finalized connection (ourselves) */
     unsigned                           fake_request:1;
+    unsigned                           req_headers_modified:1;
 
     unsigned                           ffi_attached:1;
     unsigned                           pwm_lua_resolver:1;      /* use Lua-land resolver in OpenResty */
