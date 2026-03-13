@@ -647,7 +647,8 @@ ngx_proxy_wasm_resume(ngx_proxy_wasm_ctx_t *pwctx,
     case NGX_PROXY_WASM_STEP_DONE:
     case NGX_PROXY_WASM_STEP_RESP_BODY:
     case NGX_PROXY_WASM_STEP_DISPATCH_RESPONSE:
-    case NGX_PROXY_WASM_STEP_UPSTREAM:
+    case NGX_PROXY_WASM_STEP_UPSTREAM_SELECT:
+    case NGX_PROXY_WASM_STEP_UPSTREAM_INFO:
         break;
     case NGX_PROXY_WASM_STEP_RESP_HEADERS:
         if (pwctx->last_completed_step < NGX_PROXY_WASM_STEP_RESP_HEADERS) {
@@ -844,7 +845,8 @@ ngx_proxy_wasm_run_step(ngx_proxy_wasm_exec_t *pwexec,
     case NGX_PROXY_WASM_STEP_FOREIGN_CALLBACK:
         rc = filter->subsystem->resume(pwexec, step, &action);
         break;
-    case NGX_PROXY_WASM_STEP_UPSTREAM:
+    case NGX_PROXY_WASM_STEP_UPSTREAM_SELECT:
+    case NGX_PROXY_WASM_STEP_UPSTREAM_INFO:
         rc = filter->subsystem->resume(pwexec, step, &action);
         break;
     case NGX_PROXY_WASM_STEP_TICK:
@@ -1714,6 +1716,8 @@ ngx_proxy_wasm_filter_init_abi(ngx_proxy_wasm_filter_t *filter)
         get_func(filter, "proxy_on_http_response_metadata");
     filter->proxy_on_http_upstream_select =
         get_func(filter, "proxy_on_http_upstream_select");
+    filter->proxy_on_http_upstream_info =
+        get_func(filter, "proxy_on_http_upstream_info");
 
     if (filter->abi_version < NGX_PROXY_WASM_VNEXT) {
         /* 0.1.0 - 0.2.1 */
@@ -1735,6 +1739,8 @@ ngx_proxy_wasm_filter_init_abi(ngx_proxy_wasm_filter_t *filter)
             get_func(filter, "proxy_on_response_metadata");
         filter->proxy_on_http_upstream_select =
             get_func(filter, "proxy_on_upstream_select");
+        filter->proxy_on_http_upstream_info =
+            get_func(filter, "proxy_on_upstream_info");
     }
 
     /* shared queue */
