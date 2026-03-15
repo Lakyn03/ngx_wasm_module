@@ -65,7 +65,6 @@ ngx_http_wasm_upstream_init_peer(ngx_http_request_t *r,
     up->original_free_peer = r->upstream->peer.free;
 
     up->request = r;
-    up->last_peer_state = NGX_PROXY_WASM_LAST_UPSTREAM_NO_INFO;
 
     r->upstream->peer.data = up;
     r->upstream->peer.get = ngx_http_wasm_upstream_get_peer;
@@ -91,7 +90,7 @@ ngx_http_wasm_upstream_get_peer(ngx_peer_connection_t *pc, void *data)
         return NGX_ERROR;
     }
 
-    rc = ngx_proxy_wasm_upstream_resume(rctx);
+    rc = ngx_proxy_wasm_upstream_resume(rctx, NGX_PROXY_WASM_STEP_UPSTREAM_SELECT);
     if (rc == NGX_ERROR) {
         return NGX_ERROR;
     }
@@ -144,9 +143,7 @@ ngx_http_wasm_upstream_free_peer(ngx_peer_connection_t *pc, void *data,
         up->sockaddr = NULL;
         up->socklen = 0;
 
-        if (state == 0) {
-            ngx_proxy_wasm_upstream_resume(rctx);
-        }
+        ngx_proxy_wasm_upstream_resume(rctx, NGX_PROXY_WASM_STEP_UPSTREAM_INFO);
 
         return;
     }
@@ -166,25 +163,25 @@ ngx_http_wasm_upstream_notify_peer(ngx_peer_connection_t *pc, void *data,
 
 
 ngx_int_t
-ngx_proxy_wasm_upstream_resume(ngx_http_wasm_req_ctx_t *rctx)
+ngx_proxy_wasm_upstream_resume(ngx_http_wasm_req_ctx_t *rctx, ngx_proxy_wasm_step_e step)
 {
     ngx_int_t              rc;
     ngx_proxy_wasm_ctx_t  *pwctx;
-    ngx_proxy_wasm_step_e  step, last_completed_step;
+    ngx_proxy_wasm_step_e  prev_step, last_completed_step;
 
     pwctx = rctx->data;
     if (pwctx == NULL) {
         return NGX_OK;
     }
 
-    step = pwctx->step;
+    prev_step = pwctx->step;
     last_completed_step = pwctx->last_completed_step;
     pwctx->phase = ngx_wasm_phase_lookup(&ngx_http_wasm_subsystem,
                                  NGX_WASM_BACKGROUND_PHASE);
 
-    rc = ngx_proxy_wasm_resume(pwctx, pwctx->phase, NGX_PROXY_WASM_STEP_UPSTREAM);
+    rc = ngx_proxy_wasm_resume(pwctx, pwctx->phase, step);
 
-    pwctx->step = step;
+    pwctx->step = prev_step;
     pwctx->last_completed_step = last_completed_step;
 
     return rc;

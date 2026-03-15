@@ -390,6 +390,27 @@ ngx_http_proxy_wasm_on_foreign_function(ngx_proxy_wasm_exec_t *pwexec)
 static ngx_int_t
 ngx_http_proxy_wasm_on_upstream_select(ngx_proxy_wasm_exec_t *pwexec)
 {
+    ngx_int_t                 rc;
+    ngx_wavm_instance_t      *instance;
+    ngx_proxy_wasm_filter_t  *filter;
+
+    instance = ngx_proxy_wasm_pwexec2instance(pwexec);
+    filter = pwexec->filter;
+
+    if (filter->proxy_on_http_upstream_select == NULL) {
+        return NGX_OK;
+    }
+
+    rc = ngx_wavm_instance_call_funcref(instance,
+                                        filter->proxy_on_http_upstream_select,
+                                        NULL, pwexec->id);
+    return rc;
+}
+
+
+static ngx_int_t
+ngx_http_proxy_wasm_on_upstream_info(ngx_proxy_wasm_exec_t *pwexec)
+{
     ngx_int_t                             rc;
     ngx_http_request_t                   *r;
     ngx_wavm_instance_t                  *instance;
@@ -403,28 +424,33 @@ ngx_http_proxy_wasm_on_upstream_select(ngx_proxy_wasm_exec_t *pwexec)
     rctx = ngx_http_proxy_wasm_get_rctx(instance);
     r = rctx->r;
 
+    if (filter->proxy_on_http_upstream_info == NULL) {
+        return NGX_OK;
+    }
+
     if (r->upstream == NULL) {
         return NGX_ERROR;
     }
 
-    up = rctx->r->upstream->peer.data;
+    up = r->upstream->peer.data;
     switch (up->last_peer_state) {
     case 0:
         state = NGX_PROXY_WASM_LAST_UPSTREAM_OK;
         break;
     case NGX_PEER_NEXT:
-        state = NGX_PROXY_WASM_LAST_UPSTREAM_NEXT;
+        state = NGX_PROXY_WASM_LAST_UPSTREAM_DECLINED;
         break;
     case NGX_PEER_FAILED:
         state = NGX_PROXY_WASM_LAST_UPSTREAM_FAILED;
         break;
     default:
-        state = NGX_PROXY_WASM_LAST_UPSTREAM_NO_INFO;
-        break;
+        ngx_proxy_wasm_log_error(NGX_LOG_ERR, pwexec->log, 0,
+                                 "invalid upstream state");
+        return NGX_ERROR;
     }
 
     rc = ngx_wavm_instance_call_funcref(instance,
-                                        filter->proxy_on_http_upstream_select,
+                                        filter->proxy_on_http_upstream_info,
                                         NULL, pwexec->id, state);
     return rc;
 }
@@ -521,8 +547,11 @@ ngx_http_proxy_wasm_resume(ngx_proxy_wasm_exec_t *pwexec,
     case NGX_PROXY_WASM_STEP_FOREIGN_CALLBACK:
         rc = ngx_http_proxy_wasm_on_foreign_function(pwexec);
         break;
-    case NGX_PROXY_WASM_STEP_UPSTREAM:
+    case NGX_PROXY_WASM_STEP_UPSTREAM_SELECT:
         rc = ngx_http_proxy_wasm_on_upstream_select(pwexec);
+        break;
+    case NGX_PROXY_WASM_STEP_UPSTREAM_INFO:
+        rc = ngx_http_proxy_wasm_on_upstream_info(pwexec);
         break;
     default:
         ngx_proxy_wasm_log_error(NGX_LOG_WASM_NYI, pwexec->log, 0,

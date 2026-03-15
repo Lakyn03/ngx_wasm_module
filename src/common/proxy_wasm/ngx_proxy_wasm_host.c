@@ -1907,8 +1907,18 @@ ngx_proxy_wasm_hfuncs_proxy_set_upstream(ngx_wavm_instance_t *instance,
     ngx_int_t                 rc;
     ngx_str_t                 addr_str;
     ngx_http_request_t       *r;
+    ngx_proxy_wasm_ctx_t     *pwctx;
     ngx_proxy_wasm_exec_t    *pwexec;
     ngx_http_wasm_req_ctx_t  *rctx;
+
+    pwexec = ngx_proxy_wasm_instance2pwexec(instance);
+    rctx = ngx_http_proxy_wasm_get_rctx(instance);
+    r = rctx->r;
+    pwctx = pwexec->parent;
+
+    if (pwctx->step != NGX_PROXY_WASM_STEP_UPSTREAM_SELECT) {
+        return ngx_proxy_wasm_result_badarg(rets);
+    }
 
     addr_size = args[1].of.i32;
     addr = NGX_WAVM_HOST_LIFT_SLICE(instance, args[0].of.i32, addr_size);
@@ -1917,10 +1927,6 @@ ngx_proxy_wasm_hfuncs_proxy_set_upstream(ngx_wavm_instance_t *instance,
     if (port > 65535) {
         return ngx_proxy_wasm_result_badarg(rets);
     }
-
-    pwexec = ngx_proxy_wasm_instance2pwexec(instance);
-    rctx = ngx_http_proxy_wasm_get_rctx(instance);
-    r = rctx->r;
 
     addr_str.len = addr_size;
     addr_str.data = addr;
