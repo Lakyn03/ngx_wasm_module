@@ -79,6 +79,9 @@ impl TestHttp {
             "/t/send_local_response/set_special_headers" => test_set_special_headers(self),
             "/t/send_local_response/set_headers_escaping" => test_set_headers_escaping(self),
 
+            /* set_upstream */
+            "/t/set_upstream" => test_set_upstream(self),
+
             /* set/add request/response headers */
             "/t/set_request_headers" => test_set_request_headers(self),
             "/t/set_request_headers/special" => test_set_request_headers_special(self),

@@ -14,6 +14,8 @@ pub enum TestPhase {
     ResponseBody,
     ResponseTrailers,
     Log,
+    UpstreamSelect,
+    UpstreamInfo,
 }
 
 #[repr(u32)]
