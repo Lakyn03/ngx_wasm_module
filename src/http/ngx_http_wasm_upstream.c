@@ -96,7 +96,9 @@ ngx_http_wasm_upstream_get_peer(ngx_peer_connection_t *pc, void *data)
     r = up->request;
 
     rc = ngx_http_wasm_rctx(r, &rctx);
-    if (rc != NGX_OK) {
+    if (rc == NGX_DECLINED) {
+        goto original;
+    } else if (rc != NGX_OK) {
         return NGX_ERROR;
     }
 
@@ -125,6 +127,10 @@ ngx_http_wasm_upstream_get_peer(ngx_peer_connection_t *pc, void *data)
         return NGX_OK;
     }
 
+original:
+
+    ngx_wasm_log_error(NGX_LOG_INFO, r->connection->log, 0,
+                   "calling original get_peer");
     return up->original_get_peer(pc, up->data);
 }
 
