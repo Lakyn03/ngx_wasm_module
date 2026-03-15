@@ -9,10 +9,16 @@
 char *
 ngx_http_wasm_upstream_select_directive(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 {
+    ngx_wavm_t                    *vm;
     ngx_http_wasm_srv_conf_t      *wscf = conf;
     ngx_http_upstream_srv_conf_t  *uscf;
 
     uscf = ngx_http_conf_get_module_srv_conf(cf, ngx_http_upstream_module);
+
+    vm = ngx_wasm_main_vm(cf->cycle);
+    if (vm == NULL) {
+        return NGX_WASM_CONF_ERR_NO_WASM;
+    }
 
     if (wscf->original_init_upstream) {
         return "is duplicate";
@@ -126,6 +132,9 @@ ngx_http_wasm_upstream_get_peer(ngx_peer_connection_t *pc, void *data)
 
         return NGX_OK;
     }
+    
+    ngx_wasm_log_error(NGX_LOG_INFO, r->connection->log, 0,
+                       "no upstream selected in \"on_upstream_select\"");
 
 original:
 
