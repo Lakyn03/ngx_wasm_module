@@ -1917,7 +1917,10 @@ ngx_proxy_wasm_hfuncs_proxy_set_upstream(ngx_wavm_instance_t *instance,
     pwctx = pwexec->parent;
 
     if (pwctx->step != NGX_PROXY_WASM_STEP_UPSTREAM_SELECT) {
-        return ngx_proxy_wasm_result_badarg(rets);
+        return ngx_proxy_wasm_result_trap(pwexec,
+                                          "can only set upstream during "
+                                          "\"on_upstream_select\"",
+                                          rets, NGX_WAVM_BAD_USAGE);
     }
 
     addr_size = args[1].of.i32;
@@ -1925,6 +1928,8 @@ ngx_proxy_wasm_hfuncs_proxy_set_upstream(ngx_wavm_instance_t *instance,
     port = args[2].of.i32;
 
     if (port > 65535) {
+        ngx_wavm_log_error(NGX_LOG_INFO, instance->log, NULL,
+                       "proxy_set_upstream: port out of range: %d", port);
         return ngx_proxy_wasm_result_badarg(rets);
     }
 

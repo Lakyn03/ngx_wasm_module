@@ -251,6 +251,9 @@ ngx_http_wasm_set_upstream(ngx_http_wasm_upstream_peer_data_t  *up,
     ngx_url_t  url;
 
     if (up->sockaddr && up->socklen) {
+        ngx_wasm_log_error(NGX_LOG_DEBUG, up->request->connection->log, 0,
+                       "upstream \"%V\" already set, overwriting not allowed",
+                           up->name);
         return NGX_DECLINED;
     }
 
@@ -269,13 +272,17 @@ ngx_http_wasm_set_upstream(ngx_http_wasm_upstream_peer_data_t  *up,
     url.no_resolve = 1;
     url.uri_part = 0;
 
-    if (ngx_parse_url(pool, &url) != NGX_OK) {
+    if (ngx_parse_url(pool, &url) != NGX_OK
+        || url.addrs == NULL
+        || url.addrs[0].sockaddr == NULL)
+    {
+        ngx_wasm_log_error(NGX_LOG_DEBUG, up->request->connection->log, 0,
+                       "invalid upstream address \"%V\"", addr);
         return NGX_DECLINED;
     }
 
-    if (url.addrs == NULL || url.addrs[0].sockaddr == NULL) {
-        return NGX_ERROR;
-    }
+    ngx_wasm_log_error(NGX_LOG_DEBUG, up->request->connection->log, 0,
+                   "set upstream peer \"%V\"", &url.addrs[0].name);
 
     up->sockaddr = url.addrs[0].sockaddr;
     up->socklen = url.addrs[0].socklen;
