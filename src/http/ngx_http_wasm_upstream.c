@@ -14,6 +14,15 @@ ngx_http_wasm_upstream_select_directive(ngx_conf_t *cf, ngx_command_t *cmd, void
 
     uscf = ngx_http_conf_get_module_srv_conf(cf, ngx_http_upstream_module);
 
+    if (wscf->original_init_upstream) {
+        return "is duplicate";
+    }
+
+    if (uscf->peer.init_upstream) {
+        ngx_conf_log_error(NGX_LOG_WARN, cf, 0,
+                           "load balancing method redefined");
+    }
+
     wscf->original_init_upstream = uscf->peer.init_upstream
                                    ? uscf->peer.init_upstream
                                    : ngx_http_upstream_init_round_robin;
