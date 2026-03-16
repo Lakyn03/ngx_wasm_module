@@ -153,8 +153,7 @@ typedef enum {
 
 typedef enum {
     NGX_PROXY_WASM_LAST_UPSTREAM_OK = 0,
-    NGX_PROXY_WASM_LAST_UPSTREAM_DECLINED = 1,
-    NGX_PROXY_WASM_LAST_UPSTREAM_FAILED = 2,
+    NGX_PROXY_WASM_LAST_UPSTREAM_FAILED = 1,
 } ngx_proxy_wasm_last_upstream_state_e;
 
 

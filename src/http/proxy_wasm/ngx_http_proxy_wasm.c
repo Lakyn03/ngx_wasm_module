@@ -470,8 +470,6 @@ ngx_http_proxy_wasm_on_upstream_info(ngx_proxy_wasm_exec_t *pwexec)
         state = NGX_PROXY_WASM_LAST_UPSTREAM_OK;
         break;
     case NGX_PEER_NEXT:
-        state = NGX_PROXY_WASM_LAST_UPSTREAM_DECLINED;
-        break;
     case NGX_PEER_FAILED:
         state = NGX_PROXY_WASM_LAST_UPSTREAM_FAILED;
         break;
