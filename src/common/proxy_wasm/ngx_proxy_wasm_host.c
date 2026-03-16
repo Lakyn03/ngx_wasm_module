@@ -1948,6 +1948,44 @@ ngx_proxy_wasm_hfuncs_proxy_set_upstream(ngx_wavm_instance_t *instance,
 }
 
 
+static ngx_int_t
+ngx_proxy_wasm_hfuncs_proxy_accept_upstream_response(ngx_wavm_instance_t *instance,
+    wasm_val_t args[], wasm_val_t rets[])
+{
+    ngx_http_request_t                  *r;
+    ngx_proxy_wasm_ctx_t                *pwctx;
+    ngx_proxy_wasm_exec_t               *pwexec;
+    ngx_http_wasm_req_ctx_t             *rctx;
+    ngx_http_wasm_upstream_peer_data_t  *up;
+
+    pwexec = ngx_proxy_wasm_instance2pwexec(instance);
+    rctx = ngx_http_proxy_wasm_get_rctx(instance);
+    r = rctx->r;
+    pwctx = pwexec->parent;
+
+    if (pwctx->step != NGX_PROXY_WASM_STEP_UPSTREAM_SPECIAL_RESPONSE) {
+        return ngx_proxy_wasm_result_trap(pwexec,
+                                          "can only accept special response "
+                                          "during "
+                                          "\"on_upstream_special_response\"",
+                                          rets, NGX_WAVM_BAD_USAGE);
+    }
+
+    if (r->upstream == NULL) {
+        return NGX_ERROR;
+    }
+
+    up = r->upstream->peer.data;
+    up->accept_resp = 1;
+
+    ngx_wavm_log_error(NGX_LOG_INFO, instance->log, NULL,
+                       "accepting upstream special response with status: %ui",
+                       up->last_status);
+
+    return ngx_proxy_wasm_result_ok(rets);
+}
+
+
 /* NOP */
 
 
@@ -2344,6 +2382,10 @@ static ngx_wavm_host_func_def_t  ngx_proxy_wasm_hfuncs[] = {
     { ngx_string("proxy_set_upstream"),
       &ngx_proxy_wasm_hfuncs_proxy_set_upstream,
       ngx_wavm_arity_i32x3,
+      ngx_wavm_arity_i32 },
+    { ngx_string("proxy_accept_upstream_response"),
+      &ngx_proxy_wasm_hfuncs_proxy_accept_upstream_response,
+      NULL,
       ngx_wavm_arity_i32 },
 
     ngx_wavm_hfunc_null
