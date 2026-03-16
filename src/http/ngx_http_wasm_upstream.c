@@ -109,7 +109,7 @@ ngx_http_wasm_upstream_get_peer(ngx_peer_connection_t *pc, void *data)
     }
 
     rc = ngx_proxy_wasm_upstream_resume(rctx, NGX_PROXY_WASM_STEP_UPSTREAM_SELECT);
-    if (rc == NGX_ERROR) {
+    if (rc == NGX_ERROR || rc >= NGX_HTTP_SPECIAL_RESPONSE) {
         return NGX_ERROR;
     }
 
