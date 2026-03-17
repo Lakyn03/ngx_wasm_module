@@ -9,10 +9,25 @@
 char *
 ngx_http_wasm_upstream_select_directive(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 {
+    ngx_wavm_t                    *vm;
     ngx_http_wasm_srv_conf_t      *wscf = conf;
     ngx_http_upstream_srv_conf_t  *uscf;
 
     uscf = ngx_http_conf_get_module_srv_conf(cf, ngx_http_upstream_module);
+
+    vm = ngx_wasm_main_vm(cf->cycle);
+    if (vm == NULL) {
+        return NGX_WASM_CONF_ERR_NO_WASM;
+    }
+
+    if (wscf->original_init_upstream) {
+        return "is duplicate";
+    }
+
+    if (uscf->peer.init_upstream) {
+        ngx_conf_log_error(NGX_LOG_WARN, cf, 0,
+                           "load balancing method redefined");
+    }
 
     wscf->original_init_upstream = uscf->peer.init_upstream
                                    ? uscf->peer.init_upstream
@@ -87,12 +102,14 @@ ngx_http_wasm_upstream_get_peer(ngx_peer_connection_t *pc, void *data)
     r = up->request;
 
     rc = ngx_http_wasm_rctx(r, &rctx);
-    if (rc != NGX_OK) {
+    if (rc == NGX_DECLINED) {
+        goto original;
+    } else if (rc != NGX_OK) {
         return NGX_ERROR;
     }
 
     rc = ngx_proxy_wasm_upstream_resume(rctx, NGX_PROXY_WASM_STEP_UPSTREAM_SELECT);
-    if (rc == NGX_ERROR) {
+    if (rc == NGX_ERROR || rc >= NGX_HTTP_SPECIAL_RESPONSE) {
         return NGX_ERROR;
     }
 
@@ -115,7 +132,14 @@ ngx_http_wasm_upstream_get_peer(ngx_peer_connection_t *pc, void *data)
 
         return NGX_OK;
     }
+    
+    ngx_wasm_log_error(NGX_LOG_INFO, r->connection->log, 0,
+                       "no upstream selected in \"on_upstream_select\"");
 
+original:
+
+    ngx_wasm_log_error(NGX_LOG_INFO, r->connection->log, 0,
+                   "calling original get_peer");
     return up->original_get_peer(pc, up->data);
 }
 
@@ -227,6 +251,9 @@ ngx_http_wasm_set_upstream(ngx_http_wasm_upstream_peer_data_t  *up,
     ngx_url_t  url;
 
     if (up->sockaddr && up->socklen) {
+        ngx_wasm_log_error(NGX_LOG_DEBUG, up->request->connection->log, 0,
+                       "upstream \"%V\" already set, overwriting not allowed",
+                           up->name);
         return NGX_DECLINED;
     }
 
@@ -245,13 +272,17 @@ ngx_http_wasm_set_upstream(ngx_http_wasm_upstream_peer_data_t  *up,
     url.no_resolve = 1;
     url.uri_part = 0;
 
-    if (ngx_parse_url(pool, &url) != NGX_OK) {
+    if (ngx_parse_url(pool, &url) != NGX_OK
+        || url.addrs == NULL
+        || url.addrs[0].sockaddr == NULL)
+    {
+        ngx_wasm_log_error(NGX_LOG_DEBUG, up->request->connection->log, 0,
+                       "invalid upstream address \"%V\"", addr);
         return NGX_DECLINED;
     }
 
-    if (url.addrs == NULL || url.addrs[0].sockaddr == NULL) {
-        return NGX_ERROR;
-    }
+    ngx_wasm_log_error(NGX_LOG_DEBUG, up->request->connection->log, 0,
+                   "set upstream peer \"%V\"", &url.addrs[0].name);
 
     up->sockaddr = url.addrs[0].sockaddr;
     up->socklen = url.addrs[0].socklen;

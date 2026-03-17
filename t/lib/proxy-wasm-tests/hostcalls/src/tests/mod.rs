@@ -221,6 +221,12 @@ pub(crate) fn test_set_headers_escaping(ctx: &TestHttp) {
     )
 }
 
+pub(crate) fn test_set_upstream(ctx: &TestHttp) {
+    let addr = ctx.config.get("ip").unwrap();
+    let port = ctx.config.get("port").unwrap().parse::<u32>().unwrap();
+    ctx.set_upstream(addr, port);
+}
+
 pub(crate) fn test_set_request_headers(ctx: &TestHttp) {
     ctx.set_http_request_headers(vec![("Hello", "world"), ("Welcome", "wasm")]);
 }
