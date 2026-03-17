@@ -44,6 +44,7 @@ static ngx_str_t  ngx_proxy_wasm_steplist[] = {
     ngx_string("on_dispatch_response"),
     ngx_string("on_foreign_function"),
     ngx_string("on_upstream_select"),
+    ngx_string("on_upstream_special_response"),
     ngx_string("on_upstream_info")
 };
 
