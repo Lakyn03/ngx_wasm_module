@@ -202,4 +202,10 @@ impl HttpContext for TestHttp {
         info!("[hostcalls] on_upstream_info, last_state: {:?}", last_state);
         self.exec_tests(TestPhase::UpstreamInfo);
     }
+
+    fn on_http_upstream_special_response(&mut self, status: u32) {
+        info!("[hostcalls] on_upstream_special_response, status: {:?}", status);
+        self.upstream_response_status = Some(status);
+        self.exec_tests(TestPhase::UpstreamSpecialResponse);
+    }
 }
