@@ -227,6 +227,32 @@ pub(crate) fn test_set_upstream(ctx: &TestHttp) {
     ctx.set_upstream(addr, port);
 }
 
+pub(crate) fn test_set_upstreams(ctx: &mut TestHttp) {
+    let upstreams_str = ctx.config.get("upstreams").unwrap().clone();
+    let upstreams: Vec<&str> = upstreams_str.split(',').collect();
+    let entry = upstreams[ctx.upstream_index % upstreams.len()];
+    ctx.upstream_index += 1;
+
+    let (addr, port_str) = entry.rsplit_once(':').expect("expected ip:port format");
+    let port = port_str.parse::<u32>().unwrap();
+    ctx.set_upstream(addr, port);
+}
+
+pub(crate) fn test_accept_response(ctx: &TestHttp) {
+    let status_str = match ctx.config.get("status") {
+        Some(s) => s.parse::<u32>().unwrap(),
+        None => {
+            ctx.accept_upstream_response();
+            return;
+        }
+    };
+    if let Some(actual_status) = ctx.upstream_response_status {
+        if actual_status == status_str {
+            ctx.accept_upstream_response();
+        }
+    }
+}
+
 pub(crate) fn test_set_request_headers(ctx: &TestHttp) {
     ctx.set_http_request_headers(vec![("Hello", "world"), ("Welcome", "wasm")]);
 }

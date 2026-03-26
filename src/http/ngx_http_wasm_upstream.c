@@ -61,6 +61,7 @@ ngx_int_t
 ngx_http_wasm_upstream_init_peer(ngx_http_request_t *r,
     ngx_http_upstream_srv_conf_t *us)
 {
+    ngx_http_upstream_t                 *u;
     ngx_http_wasm_srv_conf_t            *wscf;
     ngx_http_wasm_upstream_peer_data_t  *up;
 
@@ -75,17 +76,23 @@ ngx_http_wasm_upstream_init_peer(ngx_http_request_t *r,
         return NGX_ERROR;
     }
 
-    up->data = r->upstream->peer.data;
-    up->original_get_peer = r->upstream->peer.get;
-    up->original_free_peer = r->upstream->peer.free;
+    u = r->upstream;
+
+    if (u->conf->next_upstream_tries) {
+        u->peer.tries = u->conf->next_upstream_tries;
+    }
+
+    up->data = u->peer.data;
+    up->original_get_peer = u->peer.get;
+    up->original_free_peer = u->peer.free;
 
     up->request = r;
 
-    r->upstream->peer.data = up;
-    r->upstream->peer.get = ngx_http_wasm_upstream_get_peer;
-    r->upstream->peer.free = ngx_http_wasm_upstream_free_peer;
-    r->upstream->peer.notify = ngx_http_wasm_upstream_notify_peer;
-    r->upstream->peer.test_next = ngx_http_wasm_upstream_test_next;
+    u->peer.data = up;
+    u->peer.get = ngx_http_wasm_upstream_get_peer;
+    u->peer.free = ngx_http_wasm_upstream_free_peer;
+    u->peer.notify = ngx_http_wasm_upstream_notify_peer;
+    u->peer.test_next = ngx_http_wasm_upstream_test_next;
 
     return NGX_OK;
 }

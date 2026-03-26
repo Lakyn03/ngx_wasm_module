@@ -9,6 +9,8 @@ pub struct TestHttp {
     pub metrics: BTreeMap<String, u32>,
     pub n_sync_calls: usize,
     pub pending_callbacks: u32,
+    pub upstream_index: usize,
+    pub upstream_response_status: Option<u32>,
 }
 
 impl TestHttp {
@@ -81,6 +83,8 @@ impl TestHttp {
 
             /* set_upstream */
             "/t/set_upstream" => test_set_upstream(self),
+            "/t/set_upstreams" => test_set_upstreams(self),
+            "/t/accept_response" => test_accept_response(self),
 
             /* set/add request/response headers */
             "/t/set_request_headers" => test_set_request_headers(self),

@@ -223,6 +223,8 @@ impl RootContext for TestRoot {
             metrics: self.metrics.clone(),
             n_sync_calls: 0,
             pending_callbacks: 0,
+            upstream_index: 0,
+            upstream_response_status: None,
         }))
     }
 }

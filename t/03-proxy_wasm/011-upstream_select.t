@@ -4,7 +4,7 @@ use strict;
 use lib '.';
 use t::TestWasmX;
 
-plan tests => 148;
+plan tests => 214;
 run_tests();
 
 __DATA__
@@ -615,5 +615,507 @@ ok
 --- error_log
 [wasm] set upstream peer "127.0.0.1:9999"
 [hostcalls] on_upstream_info, last_state: Failed
+--- no_error_log
+[emerg]
+
+
+
+=== TEST 21: proxy_next_upstream_tries overrides number of servers in upstream block used as tries
+--- load_nginx_modules: ngx_http_echo_module
+--- wasm_modules: hostcalls
+--- http_config
+    proxy_next_upstream_tries 3;
+    upstream test_upstream {
+        server 0.0.0.0;
+        wasm_upstream_select;
+    }
+--- config
+    location /t {
+        proxy_wasm hostcalls 'test=/t/set_upstream on=upstream_select ip=127.0.0.1 port=9999';
+        proxy_pass http://test_upstream/;
+    }
+--- error_code: 502
+--- grep_error_log eval: qr/\[wasm\] set upstream peer "[^"]*"|\[hostcalls\] on_upstream_info, last_state: \w+/
+--- grep_error_log_out
+[wasm] set upstream peer "127.0.0.1:9999"
+[hostcalls] on_upstream_info, last_state: Failed
+[wasm] set upstream peer "127.0.0.1:9999"
+[hostcalls] on_upstream_info, last_state: Failed
+[wasm] set upstream peer "127.0.0.1:9999"
+[hostcalls] on_upstream_info, last_state: Failed
+--- no_error_log
+[emerg]
+
+
+
+=== TEST 22: on_upstream_select called for retries
+--- load_nginx_modules: ngx_http_echo_module
+--- wasm_modules: hostcalls
+--- http_config
+    server {
+        listen       8891;
+        location / {
+            return 500;
+        }
+    }
+    server {
+        listen       8892;
+        location / {
+            return 404;
+        }
+    }
+    server {
+        listen       8893;
+        location / {
+            echo "ok";
+        }
+    }
+    proxy_next_upstream_tries 3;
+    proxy_next_upstream http_500 http_404;
+    upstream test_upstream {
+        server 0.0.0.0;
+        wasm_upstream_select;
+    }
+--- config
+    location /t {
+        proxy_wasm hostcalls 'test=/t/set_upstreams on=upstream_select upstreams=127.0.0.1:8891,127.0.0.1:8892,127.0.0.1:8893';
+        proxy_pass http://test_upstream/;
+    }
+--- response_body
+ok
+--- grep_error_log eval: qr/\[wasm\] set upstream peer "[^"]*"|\[hostcalls\] on_upstream_info, last_state: \w+/
+--- grep_error_log_out
+[wasm] set upstream peer "127.0.0.1:8891"
+[hostcalls] on_upstream_info, last_state: Failed
+[wasm] set upstream peer "127.0.0.1:8892"
+[hostcalls] on_upstream_info, last_state: Failed
+[wasm] set upstream peer "127.0.0.1:8893"
+[hostcalls] on_upstream_info, last_state: Ok
+--- no_error_log
+[emerg]
+
+
+
+=== TEST 23: runs out of retries last response used
+--- load_nginx_modules: ngx_http_echo_module
+--- wasm_modules: hostcalls
+--- http_config
+    server {
+        listen       8891;
+        location / {
+            return 500;
+        }
+    }
+    server {
+        listen       8892;
+        location / {
+            return 404;
+        }
+    }
+    server {
+        listen       8893;
+        location / {
+            echo "ok";
+        }
+    }
+    proxy_next_upstream_tries 2;
+    proxy_next_upstream http_500 http_404;
+    upstream test_upstream {
+        server 0.0.0.0;
+        wasm_upstream_select;
+    }
+--- config
+    location /t {
+        proxy_wasm hostcalls 'test=/t/set_upstreams on=upstream_select upstreams=127.0.0.1:8891,127.0.0.1:8892,127.0.0.1:8893';
+        proxy_pass http://test_upstream/;
+    }
+--- error_code: 404
+--- grep_error_log eval: qr/\[wasm\] set upstream peer "[^"]*"|\[hostcalls\] on_upstream_info, last_state: \w+/
+--- grep_error_log_out
+[wasm] set upstream peer "127.0.0.1:8891"
+[hostcalls] on_upstream_info, last_state: Failed
+[wasm] set upstream peer "127.0.0.1:8892"
+[hostcalls] on_upstream_info, last_state: Ok
+--- no_error_log
+[emerg]
+
+
+
+=== TEST 24: on_upstream_special_response called after special response before retry
+--- load_nginx_modules: ngx_http_echo_module
+--- wasm_modules: hostcalls
+--- http_config
+    server {
+        listen       8891;
+        location / {
+            return 500;
+        }
+    }
+    server {
+        listen       8892;
+        location / {
+            echo "ok";
+        }
+    }
+    proxy_next_upstream_tries 2;
+    proxy_next_upstream http_500;
+    upstream test_upstream {
+        server 0.0.0.0;
+        wasm_upstream_select;
+    }
+--- config
+    location /t {
+        proxy_wasm hostcalls 'test=/t/set_upstreams on=upstream_select upstreams=127.0.0.1:8891,127.0.0.1:8892';
+        proxy_pass http://test_upstream/;
+    }
+--- response_body
+ok
+--- grep_error_log eval: qr/\[wasm\] set upstream peer "[^"]*"|\[hostcalls\] on_upstream_info, last_state: \w+|\[hostcalls\] on_upstream_special_response, status: \w+/
+--- grep_error_log_out
+[wasm] set upstream peer "127.0.0.1:8891"
+[hostcalls] on_upstream_special_response, status: 500
+[hostcalls] on_upstream_info, last_state: Failed
+[wasm] set upstream peer "127.0.0.1:8892"
+[hostcalls] on_upstream_info, last_state: Ok
+--- no_error_log
+[emerg]
+
+
+
+=== TEST 25: connection refused - upstream_info failed, no upstream_special_response called
+--- load_nginx_modules: ngx_http_echo_module
+--- wasm_modules: hostcalls
+--- http_config
+    server {
+        listen       8891;
+        location / {
+            echo "ok";
+        }
+    }
+    proxy_next_upstream_tries 2;
+    upstream test_upstream {
+        server 0.0.0.0;
+        wasm_upstream_select;
+    }
+--- config
+    location /t {
+        proxy_wasm hostcalls 'test=/t/set_upstreams on=upstream_select upstreams=127.0.0.1:9999,127.0.0.1:8891';
+        proxy_pass http://test_upstream/;
+    }
+--- response_body
+ok
+--- error_log
+[wasm] set upstream peer "127.0.0.1:9999"
+[hostcalls] on_upstream_info, last_state: Failed
+[wasm] set upstream peer "127.0.0.1:8891"
+[hostcalls] on_upstream_info, last_state: Ok
+--- no_error_log
+[wasm] accepting upstream special response
+[emerg]
+
+
+
+=== TEST 26: connection timeout - upstream_info failed, no upstream_special_response called
+--- load_nginx_modules: ngx_http_echo_module
+--- wasm_modules: hostcalls
+--- http_config
+    server {
+        listen       8891;
+        location / {
+            echo "ok";
+        }
+    }
+    proxy_next_upstream_tries 2;
+    proxy_connect_timeout 1s;
+    upstream test_upstream {
+        server 0.0.0.0;
+        wasm_upstream_select;
+    }
+--- config
+    location /t {
+        proxy_wasm hostcalls 'test=/t/set_upstreams on=upstream_select upstreams=192.0.2.1:12345,127.0.0.1:8891';
+        proxy_pass http://test_upstream/;
+    }
+--- response_body
+ok
+--- error_log
+[wasm] set upstream peer "192.0.2.1:12345"
+[hostcalls] on_upstream_info, last_state: Failed
+[wasm] set upstream peer "127.0.0.1:8891"
+[hostcalls] on_upstream_info, last_state: Ok
+--- no_error_log
+[wasm] accepting upstream special response
+[emerg]
+
+
+
+=== TEST 27: on_upstream_special_response not called after normal response
+--- load_nginx_modules: ngx_http_echo_module
+--- wasm_modules: hostcalls
+--- http_config
+    server {
+        listen       8891;
+        location / {
+            echo "ok";
+        }
+    }
+    proxy_next_upstream_tries 2;
+    proxy_next_upstream http_500;
+    upstream test_upstream {
+        server 0.0.0.0;
+        wasm_upstream_select;
+    }
+--- config
+    location /t {
+        proxy_wasm hostcalls 'test=/t/set_upstream on=upstream_select ip=127.0.0.1 port=8891';
+        proxy_pass http://test_upstream/;
+    }
+--- response_body
+ok
+--- error_log
+[wasm] set upstream peer "127.0.0.1:8891"
+[hostcalls] on_upstream_info, last_state: Ok
+--- no_error_log
+[wasm] accepting upstream special response
+[emerg]
+
+
+
+=== TEST 28: accept_upstream_response results in no more tries and response sent
+--- load_nginx_modules: ngx_http_echo_module
+--- wasm_modules: hostcalls
+--- http_config
+    server {
+        listen       8891;
+        location / {
+            return 404;
+        }
+    }
+    server {
+        listen       8892;
+        location / {
+            echo "ok";
+        }
+    }
+    proxy_next_upstream_tries 2;
+    proxy_next_upstream http_404;
+    upstream test_upstream {
+        server 0.0.0.0;
+        wasm_upstream_select;
+    }
+--- config
+    location /t {
+        proxy_wasm hostcalls 'test=/t/set_upstreams on=upstream_select upstreams=127.0.0.1:8891,127.0.0.1:8892';
+        proxy_wasm hostcalls 'test=/t/accept_response on=upstream_special_response status=404';
+        proxy_pass http://test_upstream/;
+    }
+--- error_code: 404
+--- error_log
+[wasm] set upstream peer "127.0.0.1:8891"
+[hostcalls] on_upstream_special_response, status: 404
+[wasm] accepting upstream special response with status: 404
+[hostcalls] on_upstream_info, last_state: Ok
+--- no_error_log
+[emerg]
+
+
+
+=== TEST 29: accept_upstream_response called from on_upstream_select not allowed
+--- load_nginx_modules: ngx_http_echo_module
+--- wasm_modules: hostcalls
+--- http_config
+    server {
+        listen       8891;
+        location / {
+            echo "ok";
+        }
+    }
+    upstream test_upstream {
+        server 0.0.0.0;
+        wasm_upstream_select;
+    }
+--- config
+    location /t {
+        proxy_wasm hostcalls 'test=/t/accept_response on=upstream_select';
+        proxy_pass http://test_upstream/;
+    }
+--- error_code: 500
+--- error_log
+host trap (bad usage): can only accept special response during "on_upstream_special_response"
+--- no_error_log
+[emerg]
+
+
+
+=== TEST 30: accept_upstream_response called from on_upstream_info not allowed
+--- load_nginx_modules: ngx_http_echo_module
+--- wasm_modules: hostcalls
+--- http_config
+    server {
+        listen       8891;
+        location / {
+            echo "ok";
+        }
+    }
+    upstream test_upstream {
+        server 0.0.0.0;
+        wasm_upstream_select;
+    }
+--- config
+    location /t {
+        proxy_wasm hostcalls 'test=/t/set_upstream on=upstream_select ip=127.0.0.1 port=8891';
+        proxy_wasm hostcalls 'test=/t/accept_response on=upstream_info';
+        proxy_pass http://test_upstream/;
+    }
+--- error_code: 200
+--- response_body
+ok
+--- error_log
+host trap (bad usage): can only accept special response during "on_upstream_special_response"
+--- no_error_log
+[emerg]
+
+
+
+=== TEST 31: accept_upstream_response called from request_headers not allowed
+--- load_nginx_modules: ngx_http_echo_module
+--- wasm_modules: hostcalls
+--- http_config
+    server {
+        listen       8891;
+        location / {
+            echo "ok";
+        }
+    }
+    upstream test_upstream {
+        server 127.0.0.1:8891;
+        wasm_upstream_select;
+    }
+--- config
+    location /t {
+        proxy_wasm hostcalls 'test=/t/accept_response on=request_headers';
+        proxy_pass http://test_upstream/;
+    }
+--- error_code: 500
+--- error_log
+host trap (bad usage): can only accept special response during "on_upstream_special_response"
+--- no_error_log
+[emerg]
+
+
+
+=== TEST 32: trap in on_upstream_select
+--- load_nginx_modules: ngx_http_echo_module
+--- wasm_modules: hostcalls
+--- http_config
+    server {
+        listen       8891;
+        location / {
+            echo "ok";
+        }
+    }
+    upstream test_upstream {
+        server 127.0.0.1:8891;
+        wasm_upstream_select;
+    }
+--- config
+    location /t {
+        proxy_wasm hostcalls 'test=/t/trap on=upstream_select';
+        proxy_pass http://test_upstream/;
+    }
+--- error_code: 500
+--- error_log eval
+[
+    qr/\[crit\] .*? panicked at/,
+    qr/custom trap/,
+]
+--- no_error_log
+[emerg]
+
+
+
+=== TEST 33: trap in on_upstream_special_response
+--- load_nginx_modules: ngx_http_echo_module
+--- wasm_modules: hostcalls
+--- http_config
+    server {
+        listen       8891;
+        location / {
+            return 404;
+        }
+    }
+    server {
+        listen       8892;
+        location / {
+            echo "ok";
+        }
+    }
+    proxy_next_upstream_tries 2;
+    proxy_next_upstream http_404;
+    upstream test_upstream {
+        server 127.0.0.1:8891;
+        wasm_upstream_select;
+    }
+--- config
+    location /t {
+        proxy_wasm hostcalls 'test=/t/set_upstreams on=upstream_select upstreams=127.0.0.1:8891,127.0.0.1:8892';
+        proxy_wasm hostcalls 'test=/t/trap on=upstream_special_response';
+        proxy_pass http://test_upstream/;
+    }
+--- error_code: 500
+--- error_log eval
+[
+    qr/\[crit\] .*? panicked at/,
+    qr/custom trap/,
+]
+--- no_error_log
+[emerg]
+
+
+
+=== TEST 34: trap in on_upstream_info ignored
+--- load_nginx_modules: ngx_http_echo_module
+--- wasm_modules: hostcalls
+--- http_config
+    server {
+        listen       8891;
+        location / {
+            echo "ok";
+        }
+    }
+    upstream test_upstream {
+        server 127.0.0.1:8891;
+        wasm_upstream_select;
+    }
+--- config
+    location /t {
+        proxy_wasm hostcalls 'test=/t/set_upstream on=upstream_select ip=127.0.0.1 port=8891';
+        proxy_wasm hostcalls 'test=/t/trap on=upstream_info';
+        proxy_pass http://test_upstream/;
+    }
+--- error_log eval
+[
+    qr/\[crit\] .*? panicked at/,
+    qr/custom trap/,
+]
+--- no_error_log
+[emerg]
+
+
+
+=== TEST 35: send_local_response in on_upstream_select
+--- load_nginx_modules: ngx_http_echo_module
+--- wasm_modules: hostcalls
+--- http_config
+    upstream test_upstream {
+        server 127.0.0.1:8891;
+        wasm_upstream_select;
+    }
+--- config
+    location /t {
+        proxy_wasm hostcalls 'test=/t/send_local_response/status/204 on=upstream_select';
+        proxy_pass http://test_upstream/;
+    }
+--- error_code: 204
 --- no_error_log
 [emerg]
