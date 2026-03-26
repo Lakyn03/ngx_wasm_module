@@ -7,6 +7,7 @@
 #include <ngx_proxy_wasm_maps.h>
 #ifdef NGX_WASM_HTTP
 #include <ngx_http_proxy_wasm.h>
+#include "ngx_http_wasm_upstream.h"
 #endif
 
 #ifndef NGX_WASM_HOST_PROPERTY_NAMESPACE
@@ -220,6 +221,120 @@ get_response_header(ngx_proxy_wasm_ctx_t *pwctx, ngx_str_t *path,
 
     return get_map_value(pwctx, &name, value,
                          NGX_PROXY_WASM_MAP_HTTP_RESPONSE_HEADERS);
+}
+
+
+static ngx_int_t
+get_upstream_address(ngx_proxy_wasm_ctx_t *pwctx, ngx_str_t *path,
+    ngx_str_t *value)
+{
+    ngx_http_upstream_state_t  *state;
+
+    if (ngx_http_wasm_get_last_upstream_state(pwctx, &state) != NGX_OK) {
+        return NGX_DECLINED;
+    }
+
+    if (state->peer == NULL) {
+        return NGX_DECLINED;
+    }
+
+    value->len = state->peer->len;
+    value->data = state->peer->data;
+
+    return NGX_OK;
+}
+
+
+static ngx_int_t
+get_upstream_status(ngx_proxy_wasm_ctx_t *pwctx, ngx_str_t *path,
+    ngx_str_t *value)
+{
+    u_char                      buf[NGX_OFF_T_LEN];
+    ngx_http_upstream_state_t  *state;
+
+    if (ngx_http_wasm_get_last_upstream_state(pwctx, &state) != NGX_OK) {
+        return NGX_DECLINED;
+    }
+
+    if (state->status == 0) {
+        return NGX_DECLINED;
+    }
+
+    value->len = ngx_sprintf(buf, "%ui", state->status) - buf;
+
+    value->data = ngx_pcalloc(pwctx->pool, value->len);
+    if (value->data == NULL) {
+        return NGX_ERROR;
+    }
+
+    ngx_memcpy(value->data, buf, value->len);
+
+    return NGX_OK;
+}
+
+
+static ngx_int_t
+get_upstream_time(ngx_proxy_wasm_ctx_t *pwctx, ngx_str_t *value,
+    ngx_msec_t msec)
+{
+    u_char  buf[NGX_OFF_T_LEN];
+
+    if (msec == (ngx_msec_t) -1) {
+        return NGX_DECLINED;
+    }
+
+    value->len = ngx_sprintf(buf, "%ui", msec) - buf;
+
+    value->data = ngx_pcalloc(pwctx->pool, value->len);
+    if (value->data == NULL) {
+        return NGX_ERROR;
+    }
+
+    ngx_memcpy(value->data, buf, value->len);
+
+    return NGX_OK;
+}
+
+
+static ngx_int_t
+get_upstream_connect_time(ngx_proxy_wasm_ctx_t *pwctx, ngx_str_t *path,
+    ngx_str_t *value)
+{
+    ngx_http_upstream_state_t  *state;
+
+    if (ngx_http_wasm_get_last_upstream_state(pwctx, &state) != NGX_OK) {
+        return NGX_DECLINED;
+    }
+
+    return get_upstream_time(pwctx, value, state->connect_time);
+}
+
+
+static ngx_int_t
+get_upstream_response_time(ngx_proxy_wasm_ctx_t *pwctx, ngx_str_t *path,
+    ngx_str_t *value)
+{
+    ngx_http_upstream_state_t  *state;
+
+    if (ngx_http_wasm_get_last_upstream_state(pwctx, &state) != NGX_OK) {
+        return NGX_DECLINED;
+    }
+
+    return get_upstream_time(pwctx, value, state->response_time);
+}
+
+
+static ngx_int_t
+get_upstream_header_time(ngx_proxy_wasm_ctx_t *pwctx, ngx_str_t *path,
+    ngx_str_t *value)
+{
+    ngx_http_upstream_state_t  *state;
+
+    if (ngx_http_wasm_get_last_upstream_state(pwctx, &state) != NGX_OK) {
+        return NGX_DECLINED;
+    }
+
+    return get_upstream_time(pwctx, value, state->header_time);
 }
 
 
@@ -462,10 +577,19 @@ static pwm2ngx_mapping_t  pw2ngx[] = {
 
     { ngx_string("upstream.address"),
       ngx_null_string,
-      &nyi, NULL },
-    { ngx_string("upstream.port"),
+      &get_upstream_address, NULL },
+    { ngx_string("upstream.status"),
       ngx_null_string,
-      &nyi, NULL },
+      &get_upstream_status, NULL },
+    { ngx_string("upstream.connect_time"),
+      ngx_null_string,
+      &get_upstream_connect_time, NULL },
+    { ngx_string("upstream.response_time"),
+      ngx_null_string,
+      &get_upstream_response_time, NULL },
+    { ngx_string("upstream.header_time"),
+      ngx_null_string,
+      &get_upstream_header_time, NULL },
     { ngx_string("upstream.tls_version"),
       ngx_null_string,
       &nyi, NULL },
