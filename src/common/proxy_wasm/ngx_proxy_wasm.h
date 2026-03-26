@@ -270,8 +270,6 @@ struct ngx_proxy_wasm_ctx_s {
     ngx_str_t                                     scheme;
     ngx_str_t                                     path;                  /* r->uri + r->args */
     ngx_str_t                                     start_time;            /* r->start_sec + r->start_msec */
-    ngx_str_t                                     upstream_address;      /* 1st part of ngx.upstream_addr */
-    ngx_str_t                                     upstream_port;         /* 2nd part of ngx.upstsream_addr */
     ngx_str_t                                     connection_id;         /* r->connection->number */
     ngx_str_t                                     mtls;                  /* ngx.https && ngx.ssl_client_verify */
     ngx_str_t                                     root_id;               /* pwexec->root_id */

@@ -421,14 +421,6 @@ ngx_proxy_wasm_ctx_destroy(ngx_proxy_wasm_ctx_t *pwctx)
         ngx_pfree(pwctx->pool, pwctx->start_time.data);
     }
 
-    if (pwctx->upstream_address.data) {
-        ngx_pfree(pwctx->pool, pwctx->upstream_address.data);
-    }
-
-    if (pwctx->upstream_port.data) {
-        ngx_pfree(pwctx->pool, pwctx->upstream_port.data);
-    }
-
     if (pwctx->connection_id.data) {
         ngx_pfree(pwctx->pool, pwctx->connection_id.data);
     }

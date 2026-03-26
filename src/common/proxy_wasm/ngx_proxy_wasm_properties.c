@@ -210,78 +210,6 @@ is_subrequest(ngx_proxy_wasm_ctx_t *pwctx, ngx_str_t *path,
 
 
 static ngx_int_t
-get_upstream_address(ngx_proxy_wasm_ctx_t *pwctx, ngx_str_t *path,
-    ngx_str_t *value)
-{
-    size_t                    len;
-    ngx_http_wasm_req_ctx_t  *rctx = (ngx_http_wasm_req_ctx_t *) pwctx->data;
-    ngx_http_request_t       *r = rctx->r;
-    ngx_http_upstream_t      *u = r->upstream;
-    u_char                   *p;
-
-    if (u == NULL) {
-        return NGX_DECLINED;
-    }
-
-    p = u->peer.name->data;
-
-    if (!pwctx->upstream_address.len) {
-        len = ((u_char *) strrchr((char *) p, ':')) - p;
-
-        pwctx->upstream_address.len = len;
-        pwctx->upstream_address.data = ngx_pnalloc(pwctx->pool, len);
-        if (pwctx->upstream_address.data == NULL) {
-            return NGX_ERROR;
-        }
-
-        ngx_memcpy(pwctx->upstream_address.data, u->peer.name->data, len);
-    }
-
-    value->data = pwctx->upstream_address.data;
-    value->len = pwctx->upstream_address.len;
-
-    return NGX_OK;
-}
-
-
-static ngx_int_t
-get_upstream_port(ngx_proxy_wasm_ctx_t *pwctx, ngx_str_t *path,
-    ngx_str_t *value)
-{
-    size_t                    a_len, p_len;
-    ngx_http_wasm_req_ctx_t  *rctx = (ngx_http_wasm_req_ctx_t *) pwctx->data;
-    ngx_http_request_t       *r = rctx->r;
-    ngx_http_upstream_t      *u = r->upstream;
-    u_char                   *p;
-
-    if (u == NULL) {
-        return NGX_DECLINED;
-    }
-
-    p = u->peer.name->data;
-
-    if (!pwctx->upstream_port.len) {
-        a_len = (((u_char *) strrchr((char *) p, ':')) - p) + 1;
-        p_len = u->peer.name->len - a_len;
-
-        pwctx->upstream_port.len = p_len;
-        pwctx->upstream_port.data = ngx_pnalloc(pwctx->pool, p_len);
-        if (pwctx->upstream_port.data == NULL) {
-            return NGX_ERROR;
-        }
-
-        ngx_memcpy(pwctx->upstream_port.data, u->peer.name->data + a_len,
-                   p_len);
-    }
-
-    value->data = pwctx->upstream_port.data;
-    value->len = pwctx->upstream_port.len;
-
-    return NGX_OK;
-}
-
-
-static ngx_int_t
 get_response_header(ngx_proxy_wasm_ctx_t *pwctx, ngx_str_t *path,
     ngx_str_t *value)
 {
@@ -534,10 +462,10 @@ static pwm2ngx_mapping_t  pw2ngx[] = {
 
     { ngx_string("upstream.address"),
       ngx_null_string,
-      &get_upstream_address, NULL },
+      &nyi, NULL },
     { ngx_string("upstream.port"),
       ngx_null_string,
-      &get_upstream_port, NULL },
+      &nyi, NULL },
     { ngx_string("upstream.tls_version"),
       ngx_null_string,
       &nyi, NULL },
