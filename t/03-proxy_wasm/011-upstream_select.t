@@ -4,7 +4,7 @@ use strict;
 use lib '.';
 use t::TestWasmX;
 
-plan tests => 214;
+plan tests => 217;
 run_tests();
 
 __DATA__
@@ -849,7 +849,37 @@ ok
 
 
 
-=== TEST 27: on_upstream_special_response not called after normal response
+=== TEST 27: read timeout - upstream_info failed
+--- load_nginx_modules: ngx_http_echo_module
+--- wasm_modules: hostcalls
+--- http_config
+    server {
+        listen       8891;
+        location / {
+            echo_sleep 2;
+            echo "ok";
+        }
+    }
+    proxy_next_upstream_tries 1;
+    proxy_read_timeout 1s;
+    upstream test_upstream {
+        server 0.0.0.0;
+        wasm_upstream_select;
+    }
+--- config
+    location /t {
+        proxy_wasm hostcalls 'test=/t/set_upstream on=upstream_select ip=127.0.0.1 port=8891';
+        proxy_pass http://test_upstream/;
+    }
+--- error_code: 504
+--- error_log
+[hostcalls] on_upstream_info, last_state: Failed
+--- no_error_log
+[emerg]
+
+
+
+=== TEST 28: on_upstream_special_response not called after normal response
 --- load_nginx_modules: ngx_http_echo_module
 --- wasm_modules: hostcalls
 --- http_config
@@ -881,7 +911,7 @@ ok
 
 
 
-=== TEST 28: accept_upstream_response results in no more tries and response sent
+=== TEST 29: accept_upstream_response results in no more tries and response sent
 --- load_nginx_modules: ngx_http_echo_module
 --- wasm_modules: hostcalls
 --- http_config
@@ -920,7 +950,7 @@ ok
 
 
 
-=== TEST 29: accept_upstream_response called from on_upstream_select not allowed
+=== TEST 30: accept_upstream_response called from on_upstream_select not allowed
 --- load_nginx_modules: ngx_http_echo_module
 --- wasm_modules: hostcalls
 --- http_config
@@ -947,7 +977,7 @@ host trap (bad usage): can only accept special response during "on_upstream_spec
 
 
 
-=== TEST 30: accept_upstream_response called from on_upstream_info not allowed
+=== TEST 31: accept_upstream_response called from on_upstream_info not allowed
 --- load_nginx_modules: ngx_http_echo_module
 --- wasm_modules: hostcalls
 --- http_config
@@ -977,7 +1007,7 @@ host trap (bad usage): can only accept special response during "on_upstream_spec
 
 
 
-=== TEST 31: accept_upstream_response called from request_headers not allowed
+=== TEST 32: accept_upstream_response called from request_headers not allowed
 --- load_nginx_modules: ngx_http_echo_module
 --- wasm_modules: hostcalls
 --- http_config
@@ -1004,7 +1034,7 @@ host trap (bad usage): can only accept special response during "on_upstream_spec
 
 
 
-=== TEST 32: trap in on_upstream_select
+=== TEST 33: trap in on_upstream_select
 --- load_nginx_modules: ngx_http_echo_module
 --- wasm_modules: hostcalls
 --- http_config
@@ -1034,7 +1064,7 @@ host trap (bad usage): can only accept special response during "on_upstream_spec
 
 
 
-=== TEST 33: trap in on_upstream_special_response
+=== TEST 34: trap in on_upstream_special_response
 --- load_nginx_modules: ngx_http_echo_module
 --- wasm_modules: hostcalls
 --- http_config
@@ -1073,7 +1103,7 @@ host trap (bad usage): can only accept special response during "on_upstream_spec
 
 
 
-=== TEST 34: trap in on_upstream_info ignored
+=== TEST 35: trap in on_upstream_info ignored
 --- load_nginx_modules: ngx_http_echo_module
 --- wasm_modules: hostcalls
 --- http_config
@@ -1103,7 +1133,7 @@ host trap (bad usage): can only accept special response during "on_upstream_spec
 
 
 
-=== TEST 35: send_local_response in on_upstream_select
+=== TEST 36: send_local_response in on_upstream_select
 --- load_nginx_modules: ngx_http_echo_module
 --- wasm_modules: hostcalls
 --- http_config

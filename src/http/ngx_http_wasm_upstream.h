@@ -41,5 +41,7 @@ ngx_int_t ngx_http_wasm_upstream_test_next(ngx_peer_connection_t *pc,
 ngx_int_t ngx_proxy_wasm_upstream_resume(ngx_http_wasm_req_ctx_t *rctx, ngx_proxy_wasm_step_e step);
 ngx_int_t ngx_http_wasm_set_upstream(ngx_http_wasm_upstream_peer_data_t *up,
     ngx_str_t *addr, ngx_int_t port, ngx_pool_t *pool);
+ngx_int_t ngx_http_wasm_get_last_upstream_state(ngx_proxy_wasm_ctx_t *pwctx,
+    ngx_http_upstream_state_t **state);
 
 #endif //NGINX_WASMX_INDEX_NGX_HTTP_WASM_UPSTREAM_H

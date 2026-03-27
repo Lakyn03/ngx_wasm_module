@@ -297,3 +297,27 @@ ngx_http_wasm_set_upstream(ngx_http_wasm_upstream_peer_data_t  *up,
 
     return NGX_OK;
 }
+
+
+ngx_int_t
+ngx_http_wasm_get_last_upstream_state(ngx_proxy_wasm_ctx_t *pwctx,
+    ngx_http_upstream_state_t **state)
+{
+    ngx_http_request_t       *r;
+    ngx_http_wasm_req_ctx_t  *rctx;
+
+    if (pwctx->step != NGX_PROXY_WASM_STEP_UPSTREAM_INFO) {
+        return NGX_DECLINED;
+    }
+
+    rctx = pwctx->data;
+    r = rctx->r;
+
+    if (r->upstream_states == NULL || r->upstream_states->nelts == 0) {
+        return NGX_DECLINED;
+    }
+
+    *state = (ngx_http_upstream_state_t *) r->upstream_states->elts
+             + (r->upstream_states->nelts - 1);
+    return NGX_OK;
+}
