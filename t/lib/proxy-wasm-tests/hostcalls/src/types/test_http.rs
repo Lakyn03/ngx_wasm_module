@@ -95,6 +95,7 @@ impl TestHttp {
             "/t/set_response_header" => test_set_response_header(self),
             "/t/add_request_header" => test_add_request_header(self),
             "/t/add_response_header" => test_add_response_header(self),
+            "/t/set_request_header_rotate" => test_set_request_header_rotate(self),
 
             /* set/add request/response body */
             "/t/set_request_body" => test_set_request_body(self),
