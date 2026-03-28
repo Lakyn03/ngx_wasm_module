@@ -220,7 +220,7 @@ property not found: upstream.response_time
 
 
 
-=== TEST 5: upstream times not found on connection timeout
+=== TEST 6: upstream times not found on connection timeout
 --- load_nginx_modules: ngx_http_echo_module
 --- wasm_modules: hostcalls
 --- http_config
@@ -245,7 +245,7 @@ property not found: upstream.response_time
 
 
 
-=== TEST 6: connect_time available, header/response times not found on response timeout
+=== TEST 7: connect_time available, header/response times not found on response timeout
 --- load_nginx_modules: ngx_http_echo_module
 --- wasm_modules: hostcalls
 --- http_config
@@ -277,7 +277,7 @@ property not found: upstream.connect_time
 
 
 
-=== TEST 7: connect/header times available, response_time not found on rejected response, then all valid
+=== TEST 8: connect/header times available, response_time not found on rejected response, then all valid
 --- load_nginx_modules: ngx_http_echo_module
 --- wasm_modules: hostcalls
 --- http_config

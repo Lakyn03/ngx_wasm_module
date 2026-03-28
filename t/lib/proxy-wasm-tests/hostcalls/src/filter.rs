@@ -196,6 +196,7 @@ impl HttpContext for TestHttp {
     fn on_http_upstream_select(&mut self) {
         info!("[hostcalls] on_upstream_select");
         self.exec_tests(TestPhase::UpstreamSelect);
+        self.upstream_index += 1;
     }
 
     fn on_http_upstream_info(&mut self, last_state: LastUpstreamState) {

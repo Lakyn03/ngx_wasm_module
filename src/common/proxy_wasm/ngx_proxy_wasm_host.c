@@ -667,9 +667,10 @@ ngx_proxy_wasm_hfuncs_set_header_check(ngx_wavm_instance_t *instance,
         case NGX_PROXY_WASM_STEP_REQ_BODY:
         case NGX_PROXY_WASM_STEP_REQ_TRAILERS:
             break;
+        case NGX_PROXY_WASM_STEP_UPSTREAM_SELECT:
         case NGX_PROXY_WASM_STEP_DISPATCH_RESPONSE:
             if (!rctx->entered_header_filter) {
-                return NGX_OK;
+                break;
             }
             /* fallthrough */
         default:
@@ -679,6 +680,7 @@ ngx_proxy_wasm_hfuncs_set_header_check(ngx_wavm_instance_t *instance,
                                               rets, NGX_WAVM_BAD_USAGE);
         }
 
+        rctx->req_headers_modified = 1;
         break;
 
     case NGX_PROXY_WASM_MAP_HTTP_RESPONSE_HEADERS:

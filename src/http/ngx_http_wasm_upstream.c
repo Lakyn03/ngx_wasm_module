@@ -102,6 +102,7 @@ ngx_int_t
 ngx_http_wasm_upstream_get_peer(ngx_peer_connection_t *pc, void *data)
 {
     ngx_int_t                            rc = NGX_ERROR;
+    ngx_chain_t                         *cl, *next;
     ngx_http_request_t                  *r;
     ngx_http_wasm_req_ctx_t             *rctx;
     ngx_http_wasm_upstream_peer_data_t  *up = data;
@@ -114,6 +115,8 @@ ngx_http_wasm_upstream_get_peer(ngx_peer_connection_t *pc, void *data)
     } else if (rc != NGX_OK) {
         return NGX_ERROR;
     }
+
+    rctx->req_headers_modified = 0;
 
     rc = ngx_proxy_wasm_upstream_resume(rctx, NGX_PROXY_WASM_STEP_UPSTREAM_SELECT);
     if (rc == NGX_ERROR || rc >= NGX_HTTP_SPECIAL_RESPONSE) {
@@ -130,6 +133,28 @@ ngx_http_wasm_upstream_get_peer(ngx_peer_connection_t *pc, void *data)
         return NGX_ERROR;
     }
 
+    if (rctx->req_headers_modified) {
+        cl = r->upstream->request_bufs;
+
+        if (cl && (!r->request_body || cl != r->request_body->bufs)) {
+            ngx_pfree(r->pool, cl->buf->start);
+        }
+
+        for (cl = r->upstream->request_bufs; cl; /* void */ ) {
+            next = cl->next;
+            ngx_free_chain(r->pool, cl);
+            cl = next;
+        }
+
+        /* reset upstream buffers */
+        r->upstream->request_bufs = r->request_body
+                                    ? r->request_body->bufs : NULL;
+
+        if (r->upstream->create_request(r) != NGX_OK) {
+            return NGX_ERROR;
+        }
+    }
+
     if (up->sockaddr && up->socklen) {
         pc->sockaddr = up->sockaddr;
         pc->socklen = up->socklen;
@@ -139,7 +164,7 @@ ngx_http_wasm_upstream_get_peer(ngx_peer_connection_t *pc, void *data)
 
         return NGX_OK;
     }
-    
+
     ngx_wasm_log_error(NGX_LOG_INFO, r->connection->log, 0,
                        "no upstream selected in \"on_upstream_select\"");
 

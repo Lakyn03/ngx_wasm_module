@@ -4,7 +4,7 @@ use strict;
 use lib '.';
 use t::TestWasmX;
 
-plan tests => 217;
+plan tests => 234;
 run_tests();
 
 __DATA__
@@ -1147,5 +1147,167 @@ host trap (bad usage): can only accept special response during "on_upstream_spec
         proxy_pass http://test_upstream/;
     }
 --- error_code: 204
+--- no_error_log
+[emerg]
+
+
+
+=== TEST 37: modify path in on_upstream_select
+--- load_nginx_modules: ngx_http_echo_module
+--- wasm_modules: hostcalls
+--- http_config
+    server {
+        listen       8891;
+        location /test {
+            echo "ok";
+        }
+    }
+    upstream test_upstream {
+        server 127.0.0.1:8891;
+        wasm_upstream_select;
+    }
+--- config
+    location /t {
+        proxy_wasm hostcalls 'test=/t/set_upstream on=upstream_select ip=127.0.0.1 port=8891';
+        proxy_wasm hostcalls 'test=/t/set_request_header on=upstream_select name=:path value=/test';
+        proxy_pass http://test_upstream/;
+    }
+--- response_body
+ok
+--- no_error_log
+[emerg]
+
+
+=== TEST 38: modify method in on_upstream_select
+--- load_nginx_modules: ngx_http_echo_module
+--- wasm_modules: hostcalls
+--- http_config
+    server {
+        listen       8891;
+        location / {
+            echo $request_method;
+        }
+    }
+    upstream test_upstream {
+        server 127.0.0.1:8891;
+        wasm_upstream_select;
+    }
+--- config
+    location /t {
+        proxy_wasm hostcalls 'test=/t/set_upstream on=upstream_select ip=127.0.0.1 port=8891';
+        proxy_wasm hostcalls 'test=/t/set_request_header on=upstream_select name=:method value=POST';
+        proxy_pass http://test_upstream/;
+    }
+--- response_body
+POST
+--- no_error_log
+[emerg]
+
+
+
+=== TEST 39: add new header in on_upstream_select
+--- load_nginx_modules: ngx_http_echo_module
+--- wasm_modules: hostcalls
+--- http_config
+    server {
+        listen       8891;
+        location / {
+            echo $http_custom_header;
+        }
+    }
+    upstream test_upstream {
+        server 0.0.0.0;
+        wasm_upstream_select;
+    }
+--- config
+    location /t {
+        proxy_wasm hostcalls 'test=/t/set_upstream on=upstream_select ip=127.0.0.1 port=8891';
+        proxy_wasm hostcalls 'test=/t/set_request_header on=upstream_select name=custom-header value=custom-value';
+        proxy_pass http://test_upstream/;
+    }
+--- response_body
+custom-value
+--- no_error_log
+[emerg]
+
+
+
+=== TEST 40: modify request path between retries
+--- load_nginx_modules: ngx_http_echo_module
+--- wasm_modules: hostcalls
+--- http_config
+    server {
+        listen       8891;
+        location /test1 {
+            return 500;
+        }
+
+        location /test2 {
+            return 404;
+        }
+
+        location /test3 {
+            echo "ok";
+        }
+    }
+    proxy_next_upstream_tries 3;
+    proxy_next_upstream http_500 http_404;
+    upstream test_upstream {
+        server 0.0.0.0;
+        wasm_upstream_select;
+    }
+--- config
+    location /t {
+        proxy_wasm hostcalls 'test=/t/set_upstream on=upstream_select ip=127.0.0.1 port=8891';
+        proxy_wasm hostcalls 'test=/t/set_request_header_rotate on=upstream_select name=:path values=/test1,/test2,/test3';
+        proxy_pass http://test_upstream/;
+    }
+--- response_body
+ok
+--- error_log
+on_upstream_special_response, status: 500
+on_upstream_special_response, status: 404
+--- no_error_log
+[emerg]
+
+
+
+=== TEST 41: request body preserved after header modification in on_upstream_select
+--- load_nginx_modules: ngx_http_echo_module
+--- wasm_modules: hostcalls
+--- http_config
+    server {
+        listen       8891;
+
+        location /test1 {
+            return 500;
+        }
+
+        location /test2 {
+            return 404;
+        }
+
+        location /test3 {
+            echo_read_request_body;
+            echo_request_body;
+        }
+    }
+    proxy_next_upstream_tries 3;
+    proxy_next_upstream http_500 http_404 non_idempotent;
+    upstream test_upstream {
+        server 0.0.0.0;
+        wasm_upstream_select;
+    }
+--- config
+    location /t {
+        proxy_wasm hostcalls 'test=/t/set_upstream on=upstream_select ip=127.0.0.1 port=8891';
+        proxy_wasm hostcalls 'test=/t/set_request_header_rotate on=upstream_select name=:path values=/test1,/test2,/test3';
+        proxy_pass http://test_upstream/;
+    }
+--- request
+POST /t
+hello world
+--- response_body eval
+"hello world"
 --- no_error_log
 [emerg]

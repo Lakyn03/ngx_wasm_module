@@ -231,7 +231,6 @@ pub(crate) fn test_set_upstreams(ctx: &mut TestHttp) {
     let upstreams_str = ctx.config.get("upstreams").unwrap().clone();
     let upstreams: Vec<&str> = upstreams_str.split(',').collect();
     let entry = upstreams[ctx.upstream_index % upstreams.len()];
-    ctx.upstream_index += 1;
 
     let (addr, port_str) = entry.rsplit_once(':').expect("expected ip:port format");
     let port = port_str.parse::<u32>().unwrap();
@@ -310,6 +309,14 @@ pub(crate) fn test_add_request_header(ctx: &TestHttp) {
         let (name, value) = header.split_once('=').unwrap();
         ctx.add_http_request_header(name, value);
     }
+}
+
+pub(crate) fn test_set_request_header_rotate(ctx: &mut TestHttp) {
+    let name = ctx.config.get("name").unwrap().clone();
+    let values_str = ctx.config.get("values").unwrap().clone();
+    let values: Vec<&str> = values_str.split(',').collect();
+    let value = values[ctx.upstream_index % values.len()];
+    ctx.set_http_request_header(&name, Some(value));
 }
 
 pub(crate) fn test_add_response_header(ctx: &TestHttp) {
