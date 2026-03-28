@@ -4,7 +4,7 @@ use strict;
 use lib '.';
 use t::TestWasmX;
 
-plan tests => 234;
+plan tests => 240;
 run_tests();
 
 __DATA__
@@ -1309,5 +1309,40 @@ POST /t
 hello world
 --- response_body eval
 "hello world"
+--- no_error_log
+[emerg]
+
+
+
+=== TEST 42: wasm_upstream_select with keepalive - connection reused
+--- load_nginx_modules: ngx_http_echo_module
+--- wasm_modules: hostcalls
+--- http_config
+    server {
+        listen       8891;
+
+        location / {
+            return 200;
+        }
+    }
+    upstream test_upstream {
+        server 0.0.0.0;
+        wasm_upstream_select;
+        keepalive 32;
+    }
+--- config
+    location /t {
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_wasm hostcalls 'test=/t/set_upstream on=upstream_select ip=127.0.0.1 port=8891';
+        proxy_pass http://test_upstream/;
+    }
+--- request eval
+["GET /t", "GET /t"]
+--- grep_error_log eval
+qr/(free|get) keepalive peer: (saving|using) connection/
+--- grep_error_log_out eval
+["free keepalive peer: saving connection\n",
+"get keepalive peer: using connection\nfree keepalive peer: saving connection\n"]
 --- no_error_log
 [emerg]

@@ -101,6 +101,7 @@ ngx_http_wasm_upstream_init_peer(ngx_http_request_t *r,
 ngx_int_t
 ngx_http_wasm_upstream_get_peer(ngx_peer_connection_t *pc, void *data)
 {
+    void                                *peer_data;
     ngx_int_t                            rc = NGX_ERROR;
     ngx_chain_t                         *cl, *next;
     ngx_http_request_t                  *r;
@@ -117,8 +118,11 @@ ngx_http_wasm_upstream_get_peer(ngx_peer_connection_t *pc, void *data)
     }
 
     rctx->req_headers_modified = 0;
+    peer_data = r->upstream->peer.data;
+    r->upstream->peer.data = data;
 
     rc = ngx_proxy_wasm_upstream_resume(rctx, NGX_PROXY_WASM_STEP_UPSTREAM_SELECT);
+    r->upstream->peer.data = peer_data;
     if (rc == NGX_ERROR || rc >= NGX_HTTP_SPECIAL_RESPONSE) {
         return NGX_ERROR;
     }
@@ -180,6 +184,7 @@ void
 ngx_http_wasm_upstream_free_peer(ngx_peer_connection_t *pc, void *data,
     ngx_uint_t state)
 {
+    void                               *peer_data;
     ngx_int_t                           rc;
     ngx_http_request_t                  *r;
     ngx_http_wasm_req_ctx_t             *rctx;
@@ -200,7 +205,12 @@ ngx_http_wasm_upstream_free_peer(ngx_peer_connection_t *pc, void *data,
         up->sockaddr = NULL;
         up->socklen = 0;
 
+        peer_data = r->upstream->peer.data;
+        r->upstream->peer.data = data;
+
         ngx_proxy_wasm_upstream_resume(rctx, NGX_PROXY_WASM_STEP_UPSTREAM_INFO);
+
+        r->upstream->peer.data = peer_data;
 
         return;
     }
@@ -223,6 +233,7 @@ ngx_int_t
 ngx_http_wasm_upstream_test_next(ngx_peer_connection_t *pc, void *data,
     ngx_uint_t status)
 {
+    void                               *peer_data;
     ngx_int_t                           rc;
     ngx_http_request_t                  *r;
     ngx_http_wasm_req_ctx_t             *rctx;
@@ -238,7 +249,12 @@ ngx_http_wasm_upstream_test_next(ngx_peer_connection_t *pc, void *data,
         up->accept_resp = 0;
         up->last_status = status;
 
+        peer_data = r->upstream->peer.data;
+        r->upstream->peer.data = data;
+
         ngx_proxy_wasm_upstream_resume(rctx, NGX_PROXY_WASM_STEP_UPSTREAM_SPECIAL_RESPONSE);
+
+        r->upstream->peer.data = peer_data;
 
         if (up->accept_resp) {
             return NGX_DECLINED;
