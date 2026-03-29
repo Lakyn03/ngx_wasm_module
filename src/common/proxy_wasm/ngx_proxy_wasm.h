@@ -141,6 +141,7 @@ typedef enum {
     NGX_PROXY_WASM_MAP_GRPC_RECEIVE_TRAILING_METADATA = 5,
     NGX_PROXY_WASM_MAP_HTTP_CALL_RESPONSE_HEADERS = 6,
     NGX_PROXY_WASM_MAP_HTTP_CALL_RESPONSE_TRAILERS = 7,
+    NGX_PROXY_WASM_MAP_HTTP_UPSTREAM_RESPONSE_HEADERS = 8,
 } ngx_proxy_wasm_map_type_e;
 
 
@@ -159,6 +160,7 @@ typedef enum {
 
 typedef enum {
     NGX_PROXY_WASM_FOREIGN_RESOLVE_LUA = 0,
+    NGX_PROXY_WASM_FOREIGN_RESOLVE = 1,
 } ngx_proxy_wasm_foreign_function_e;
 
 

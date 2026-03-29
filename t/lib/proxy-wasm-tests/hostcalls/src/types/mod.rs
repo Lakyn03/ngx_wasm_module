@@ -23,6 +23,7 @@ pub enum TestPhase {
 #[allow(dead_code)] // ignore erroneous dead code warning
 pub enum WasmxForeignFunction {
     ResolveLua = 0,
+    Resolve = 1,
 }
 
 pub trait TestContext {

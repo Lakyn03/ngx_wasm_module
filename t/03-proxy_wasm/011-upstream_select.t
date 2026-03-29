@@ -4,7 +4,7 @@ use strict;
 use lib '.';
 use t::TestWasmX;
 
-plan tests => 234;
+plan tests => 249;
 run_tests();
 
 __DATA__
@@ -430,7 +430,7 @@ ok
 
 
 
-=== TEST 13: set_upstream IPv6 sets upstream server
+=== TEST 13: set_upstream IPv6 with brackets sets upstream server
 --- load_nginx_modules: ngx_http_echo_module
 --- wasm_modules: hostcalls
 --- http_config
@@ -460,7 +460,37 @@ ok
 
 
 
-=== TEST 14: set_upstream invalid port
+=== TEST 14: set_upstream IPv6 no brackets sets upstream server
+--- load_nginx_modules: ngx_http_echo_module
+--- wasm_modules: hostcalls
+--- http_config
+    server {
+        listen       [::1]:8891;
+        location / {
+            echo "ok";
+        }
+    }
+    upstream test_upstream {
+        server 0.0.0.0;
+        wasm_upstream_select;
+    }
+--- config
+    location /t {
+        proxy_wasm hostcalls 'test=/t/set_upstream on=upstream_select ip=::1 port=8891';
+        proxy_pass http://test_upstream/;
+    }
+--- response_body
+ok
+--- error_log
+[wasm] set upstream peer "[::1]:8891"
+--- no_error_log
+[error]
+[crit]
+[emerg]
+
+
+
+=== TEST 15: set_upstream invalid port
 --- load_nginx_modules: ngx_http_echo_module
 --- wasm_modules: hostcalls
 --- http_config
@@ -481,7 +511,7 @@ ok
 
 
 
-=== TEST 15: set_upstream empty ip
+=== TEST 16: set_upstream empty ip
 --- load_nginx_modules: ngx_http_echo_module
 --- wasm_modules: hostcalls
 --- http_config
@@ -502,7 +532,7 @@ ok
 
 
 
-=== TEST 16: set_upstream hostname as ip
+=== TEST 17: set_upstream hostname as ip
 --- load_nginx_modules: ngx_http_echo_module
 --- wasm_modules: hostcalls
 --- http_config
@@ -523,7 +553,7 @@ ok
 
 
 
-=== TEST 17: set_upstream invalid characters in ip
+=== TEST 18: set_upstream invalid characters in ip
 --- load_nginx_modules: ngx_http_echo_module
 --- wasm_modules: hostcalls
 --- http_config
@@ -544,7 +574,7 @@ ok
 
 
 
-=== TEST 18: set_upstream called twice not allowed
+=== TEST 19: set_upstream called twice not allowed
 --- load_nginx_modules: ngx_http_echo_module
 --- wasm_modules: hostcalls
 --- http_config
@@ -566,7 +596,7 @@ ok
 
 
 
-=== TEST 19: on_upstream_info state ok
+=== TEST 20: on_upstream_info state ok
 --- load_nginx_modules: ngx_http_echo_module
 --- wasm_modules: hostcalls
 --- http_config
@@ -598,7 +628,7 @@ ok
 
 
 
-=== TEST 20: on_upstream_info state Failed
+=== TEST 21: on_upstream_info state Failed
 --- load_nginx_modules: ngx_http_echo_module
 --- wasm_modules: hostcalls
 --- http_config
@@ -620,7 +650,7 @@ ok
 
 
 
-=== TEST 21: proxy_next_upstream_tries overrides number of servers in upstream block used as tries
+=== TEST 22: proxy_next_upstream_tries overrides number of servers in upstream block used as tries
 --- load_nginx_modules: ngx_http_echo_module
 --- wasm_modules: hostcalls
 --- http_config
@@ -648,7 +678,7 @@ ok
 
 
 
-=== TEST 22: on_upstream_select called for retries
+=== TEST 23: on_upstream_select called for retries
 --- load_nginx_modules: ngx_http_echo_module
 --- wasm_modules: hostcalls
 --- http_config
@@ -696,7 +726,7 @@ ok
 
 
 
-=== TEST 23: runs out of retries last response used
+=== TEST 24: runs out of retries last response used
 --- load_nginx_modules: ngx_http_echo_module
 --- wasm_modules: hostcalls
 --- http_config
@@ -741,7 +771,7 @@ ok
 
 
 
-=== TEST 24: on_upstream_special_response called after special response before retry
+=== TEST 25: on_upstream_special_response called after special response before retry
 --- load_nginx_modules: ngx_http_echo_module
 --- wasm_modules: hostcalls
 --- http_config
@@ -782,7 +812,7 @@ ok
 
 
 
-=== TEST 25: connection refused - upstream_info failed, no upstream_special_response called
+=== TEST 26: connection refused - upstream_info failed, no upstream_special_response called
 --- load_nginx_modules: ngx_http_echo_module
 --- wasm_modules: hostcalls
 --- http_config
@@ -815,7 +845,7 @@ ok
 
 
 
-=== TEST 26: connection timeout - upstream_info failed, no upstream_special_response called
+=== TEST 27: connection timeout - upstream_info failed, no upstream_special_response called
 --- load_nginx_modules: ngx_http_echo_module
 --- wasm_modules: hostcalls
 --- http_config
@@ -849,7 +879,7 @@ ok
 
 
 
-=== TEST 27: read timeout - upstream_info failed
+=== TEST 28: read timeout - upstream_info failed
 --- load_nginx_modules: ngx_http_echo_module
 --- wasm_modules: hostcalls
 --- http_config
@@ -879,7 +909,7 @@ ok
 
 
 
-=== TEST 28: on_upstream_special_response not called after normal response
+=== TEST 29: on_upstream_special_response not called after normal response
 --- load_nginx_modules: ngx_http_echo_module
 --- wasm_modules: hostcalls
 --- http_config
@@ -911,7 +941,7 @@ ok
 
 
 
-=== TEST 29: accept_upstream_response results in no more tries and response sent
+=== TEST 30: accept_upstream_response results in no more tries and response sent
 --- load_nginx_modules: ngx_http_echo_module
 --- wasm_modules: hostcalls
 --- http_config
@@ -950,7 +980,7 @@ ok
 
 
 
-=== TEST 30: accept_upstream_response called from on_upstream_select not allowed
+=== TEST 31: accept_upstream_response called from on_upstream_select not allowed
 --- load_nginx_modules: ngx_http_echo_module
 --- wasm_modules: hostcalls
 --- http_config
@@ -977,7 +1007,7 @@ host trap (bad usage): can only accept special response during "on_upstream_spec
 
 
 
-=== TEST 31: accept_upstream_response called from on_upstream_info not allowed
+=== TEST 32: accept_upstream_response called from on_upstream_info not allowed
 --- load_nginx_modules: ngx_http_echo_module
 --- wasm_modules: hostcalls
 --- http_config
@@ -1007,7 +1037,7 @@ host trap (bad usage): can only accept special response during "on_upstream_spec
 
 
 
-=== TEST 32: accept_upstream_response called from request_headers not allowed
+=== TEST 33: accept_upstream_response called from request_headers not allowed
 --- load_nginx_modules: ngx_http_echo_module
 --- wasm_modules: hostcalls
 --- http_config
@@ -1034,7 +1064,7 @@ host trap (bad usage): can only accept special response during "on_upstream_spec
 
 
 
-=== TEST 33: trap in on_upstream_select
+=== TEST 34: trap in on_upstream_select
 --- load_nginx_modules: ngx_http_echo_module
 --- wasm_modules: hostcalls
 --- http_config
@@ -1064,7 +1094,7 @@ host trap (bad usage): can only accept special response during "on_upstream_spec
 
 
 
-=== TEST 34: trap in on_upstream_special_response
+=== TEST 35: trap in on_upstream_special_response
 --- load_nginx_modules: ngx_http_echo_module
 --- wasm_modules: hostcalls
 --- http_config
@@ -1103,7 +1133,7 @@ host trap (bad usage): can only accept special response during "on_upstream_spec
 
 
 
-=== TEST 35: trap in on_upstream_info ignored
+=== TEST 36: trap in on_upstream_info ignored
 --- load_nginx_modules: ngx_http_echo_module
 --- wasm_modules: hostcalls
 --- http_config
@@ -1133,7 +1163,7 @@ host trap (bad usage): can only accept special response during "on_upstream_spec
 
 
 
-=== TEST 36: send_local_response in on_upstream_select
+=== TEST 37: send_local_response in on_upstream_select
 --- load_nginx_modules: ngx_http_echo_module
 --- wasm_modules: hostcalls
 --- http_config
@@ -1152,7 +1182,7 @@ host trap (bad usage): can only accept special response during "on_upstream_spec
 
 
 
-=== TEST 37: modify path in on_upstream_select
+=== TEST 38: modify path in on_upstream_select
 --- load_nginx_modules: ngx_http_echo_module
 --- wasm_modules: hostcalls
 --- http_config
@@ -1178,7 +1208,8 @@ ok
 [emerg]
 
 
-=== TEST 38: modify method in on_upstream_select
+
+=== TEST 39: modify method in on_upstream_select
 --- load_nginx_modules: ngx_http_echo_module
 --- wasm_modules: hostcalls
 --- http_config
@@ -1205,7 +1236,7 @@ POST
 
 
 
-=== TEST 39: add new header in on_upstream_select
+=== TEST 40: add new header in on_upstream_select
 --- load_nginx_modules: ngx_http_echo_module
 --- wasm_modules: hostcalls
 --- http_config
@@ -1232,7 +1263,7 @@ custom-value
 
 
 
-=== TEST 40: modify request path between retries
+=== TEST 41: modify request path between retries
 --- load_nginx_modules: ngx_http_echo_module
 --- wasm_modules: hostcalls
 --- http_config
@@ -1272,7 +1303,7 @@ on_upstream_special_response, status: 404
 
 
 
-=== TEST 41: request body preserved after header modification in on_upstream_select
+=== TEST 42: request body preserved after header modification in on_upstream_select
 --- load_nginx_modules: ngx_http_echo_module
 --- wasm_modules: hostcalls
 --- http_config
@@ -1309,5 +1340,73 @@ POST /t
 hello world
 --- response_body eval
 "hello world"
+--- no_error_log
+[emerg]
+
+
+
+=== TEST 43: wasm_upstream_select with keepalive - connection reused
+--- load_nginx_modules: ngx_http_echo_module
+--- wasm_modules: hostcalls
+--- http_config
+    server {
+        listen       8891;
+
+        location / {
+            return 200;
+        }
+    }
+    upstream test_upstream {
+        server 0.0.0.0;
+        wasm_upstream_select;
+        keepalive 32;
+    }
+--- config
+    location /t {
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_wasm hostcalls 'test=/t/set_upstream on=upstream_select ip=127.0.0.1 port=8891';
+        proxy_pass http://test_upstream/;
+    }
+--- request eval
+["GET /t", "GET /t"]
+--- grep_error_log eval
+qr/(free|get) keepalive peer: (saving|using) connection/
+--- grep_error_log_out eval
+["free keepalive peer: saving connection\n",
+"get keepalive peer: using connection\nfree keepalive peer: saving connection\n"]
+--- no_error_log
+[emerg]
+
+
+
+=== TEST 44: wasm_upstream_special_response with keepalive - no connection reused
+--- load_nginx_modules: ngx_http_echo_module
+--- wasm_modules: hostcalls
+--- http_config
+    server {
+        listen       8891;
+
+        location / {
+            return 404;
+        }
+    }
+    proxy_next_upstream_tries 2;
+    proxy_next_upstream http_404;
+    upstream test_upstream {
+        server 0.0.0.0;
+        wasm_upstream_select;
+        keepalive 32;
+    }
+--- config
+    location /t {
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_wasm hostcalls 'test=/t/set_upstream on=upstream_select ip=127.0.0.1 port=8891';
+        proxy_pass http://test_upstream/;
+    }
+--- error_code: 404
+--- error_log
+on_upstream_special_response, status: 404
 --- no_error_log
 [emerg]

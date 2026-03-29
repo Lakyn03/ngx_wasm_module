@@ -70,6 +70,21 @@ pub(crate) fn test_log_response_body(ctx: &TestHttp) {
     }
 }
 
+pub(crate) fn test_log_upstream_response_header(ctx: &TestHttp) {
+    if let Some(header_name) = ctx.config.get("name") {
+        let value = ctx.get_http_upstream_response_header(header_name.as_str());
+        if value.is_some() {
+            info!("upstream resp header \"{}: {}\"", header_name, value.unwrap());
+        }
+    }
+}
+
+pub(crate) fn test_log_upstream_response_headers(ctx: &TestHttp) {
+    for (name, value) in ctx.get_http_upstream_response_headers() {
+        info!("upstream resp {}: {}", name, value)
+    }
+}
+
 pub(crate) fn test_log_response_header(ctx: &TestHttp) {
     if let Some(header_name) = ctx.config.get("name") {
         let value = ctx.get_http_response_header(header_name.as_str());
@@ -746,6 +761,30 @@ pub(crate) fn test_proxy_resolve_lua(ctx: &TestHttp) -> u32 {
     for name in names.split(",") {
         info!("attempting to resolve {}", name);
         match call_foreign_function("resolve_lua", Some(name.as_bytes())) {
+            Ok(ret) => match ret {
+                Some(bytes) => info!("resolved (no yielding) {} to {:?}", name, bytes),
+                _ => {
+                    pending_callbacks += 1;
+                }
+            },
+            _ => (),
+        }
+    }
+
+    return pending_callbacks;
+}
+
+pub(crate) fn test_proxy_resolve(ctx: &TestHttp) -> u32 {
+    let mut pending_callbacks = 0;
+    let names = ctx
+        .config
+        .get("name")
+        .map(|x| x.as_str())
+        .expect("expected a name argument");
+
+    for name in names.split(",") {
+        info!("attempting to resolve {}", name);
+        match call_foreign_function("resolve", Some(name.as_bytes())) {
             Ok(ret) => match ret {
                 Some(bytes) => info!("resolved (no yielding) {} to {:?}", name, bytes),
                 _ => {

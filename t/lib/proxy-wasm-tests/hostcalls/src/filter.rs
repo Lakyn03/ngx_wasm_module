@@ -115,6 +115,12 @@ impl Context for TestHttp {
                     return;
                 }
             }
+            "resolve" => {
+                self.pending_callbacks = test_proxy_resolve(self);
+                if self.pending_callbacks > 0 {
+                    return;
+                }
+            }
             _ => {}
         }
 
@@ -129,7 +135,10 @@ impl Context for TestHttp {
 
         match f {
             WasmxForeignFunction::ResolveLua => {
-                resolve_lua_callback(args);
+                resolve_callback(args);
+            }
+            WasmxForeignFunction::Resolve => {
+                resolve_callback(args);
             }
         }
 

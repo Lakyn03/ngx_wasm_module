@@ -224,14 +224,14 @@ property not found: upstream.response_time
 --- load_nginx_modules: ngx_http_echo_module
 --- wasm_modules: hostcalls
 --- http_config
-    proxy_connect_timeout 1s;
+    proxy_connect_timeout 1ms;
     upstream test_upstream {
         server 0.0.0.0;
         wasm_upstream_select;
     }
 --- config
     location /t {
-        proxy_wasm hostcalls 'test=/t/set_upstream on=upstream_select ip=192.0.2.1 port=12345';
+        proxy_wasm hostcalls 'test=/t/set_upstream on=upstream_select ip=8.8.8.8 port=12345';
         proxy_wasm hostcalls 'test=/t/log/properties on=upstream_info name=upstream.connect_time,upstream.header_time,upstream.response_time';
         proxy_pass http://test_upstream/;
     }

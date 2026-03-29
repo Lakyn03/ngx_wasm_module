@@ -1,5 +1,5 @@
-#ifndef NGINX_WASMX_INDEX_NGX_HTTP_WASM_UPSTREAM_H
-#define NGINX_WASMX_INDEX_NGX_HTTP_WASM_UPSTREAM_H
+#ifndef _NGX_HTTP_WASM_UPSTREAM_H_INCLUDED_
+#define _NGX_HTTP_WASM_UPSTREAM_H_INCLUDED_
 
 #include <ngx_http_wasm.h>
 #include <ngx_http_proxy_wasm.h>
@@ -44,4 +44,4 @@ ngx_int_t ngx_http_wasm_set_upstream(ngx_http_wasm_upstream_peer_data_t *up,
 ngx_int_t ngx_http_wasm_get_last_upstream_state(ngx_proxy_wasm_ctx_t *pwctx,
     ngx_http_upstream_state_t **state);
 
-#endif //NGINX_WASMX_INDEX_NGX_HTTP_WASM_UPSTREAM_H
+#endif //_NGX_HTTP_WASM_UPSTREAM_H_INCLUDED_

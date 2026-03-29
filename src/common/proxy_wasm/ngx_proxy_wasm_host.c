@@ -706,6 +706,11 @@ ngx_proxy_wasm_hfuncs_set_header_check(ngx_wavm_instance_t *instance,
         }
 
         break;
+
+    case NGX_PROXY_WASM_MAP_HTTP_UPSTREAM_RESPONSE_HEADERS:
+        return ngx_proxy_wasm_result_trap(pwexec,
+                                          "cannot set upstream response headers",
+                                          rets, NGX_WAVM_BAD_USAGE);
 #endif
     default:
         ngx_wasm_log_error(NGX_LOG_WASM_NYI, instance->log, 0,
@@ -1856,6 +1861,13 @@ ngx_proxy_wasm_hfuncs_call_foreign_function(ngx_wavm_instance_t *instance,
                                                        ret_data, ret_size,
                                                        rets);
     }
+
+    if (ngx_str_eq(fname.data, fname.len, "resolve", -1)) {
+        return ngx_proxy_wasm_foreign_call_resolve(instance, rctx, &fargs,
+                                                       ret_data, ret_size,
+                                                       rets);
+    }
+
 #endif
 
     return ngx_proxy_wasm_result_trap(pwexec, "unknown foreign function",
