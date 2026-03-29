@@ -159,6 +159,7 @@ typedef enum {
 
 typedef enum {
     NGX_PROXY_WASM_FOREIGN_RESOLVE_LUA = 0,
+    NGX_PROXY_WASM_FOREIGN_RESOLVE = 1,
 } ngx_proxy_wasm_foreign_function_e;
 
 

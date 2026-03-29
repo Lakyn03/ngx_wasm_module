@@ -178,6 +178,13 @@ impl TestHttp {
                     return Action::Pause;
                 }
             }
+            "/t/resolve" => {
+                self.pending_callbacks = test_proxy_resolve(self);
+
+                if self.pending_callbacks > 0 {
+                    return Action::Pause;
+                }
+            }
 
             /* errors */
             "/t/trap" => panic!("custom trap"),

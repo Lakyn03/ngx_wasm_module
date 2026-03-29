@@ -135,6 +135,24 @@ impl RootContext for TestRoot {
                     }
                 }
             }
+            "resolve" => {
+                let names = self
+                    .config
+                    .get("name")
+                    .map(|x| x.as_str())
+                    .expect("expected a name argument");
+
+                for name in names.split(",") {
+                    info!("attempting to resolve {}", name);
+                    match call_foreign_function("resolve", Some(name.as_bytes())) {
+                        Ok(ret) => match ret {
+                            Some(bytes) => info!("resolved (no yielding) {} to {:?}", name, bytes),
+                            _ => (),
+                        },
+                        _ => (),
+                    }
+                }
+            }
             "dispatch" => {
                 let mut timeout = Duration::from_secs(0);
                 let mut headers = Vec::new();
@@ -259,7 +277,10 @@ impl Context for TestRoot {
 
         match f {
             WasmxForeignFunction::ResolveLua => {
-                resolve_lua_callback(args);
+                resolve_callback(args);
+            }
+            WasmxForeignFunction::Resolve => {
+                resolve_callback(args);
             }
         }
     }
