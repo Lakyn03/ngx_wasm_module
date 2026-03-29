@@ -303,6 +303,7 @@ ngx_int_t
 ngx_http_wasm_set_upstream(ngx_http_wasm_upstream_peer_data_t  *up,
     ngx_str_t *addr, ngx_int_t port, ngx_pool_t *pool)
 {
+    size_t     len;
     u_char    *p;
     ngx_url_t  url;
 
@@ -315,15 +316,31 @@ ngx_http_wasm_set_upstream(ngx_http_wasm_upstream_peer_data_t  *up,
 
     ngx_memzero(&url, sizeof(ngx_url_t));
 
-    p = ngx_pnalloc(pool, addr->len);
-    if (p == NULL) {
-        return NGX_ERROR;
+    if (ngx_strlchr(addr->data, addr->data + addr->len, ':')
+        && addr->data[0] != '[')
+    {
+        len = addr->len + 2;
+        p = ngx_pnalloc(pool, len);
+        if (p == NULL) {
+            return NGX_ERROR;
+        }
+
+        p[0] = '[';
+        ngx_memcpy(p + 1, addr->data, addr->len);
+        p[addr->len + 1] = ']';
+
+    } else {
+        len = addr->len;
+        p = ngx_pnalloc(pool, addr->len);
+        if (p == NULL) {
+            return NGX_ERROR;
+        }
+
+        ngx_memcpy(p, addr->data, addr->len);
     }
 
-    ngx_memcpy(p, addr->data, addr->len);
-
     url.url.data = p;
-    url.url.len = addr->len;
+    url.url.len = len;
     url.default_port = port;
     url.no_resolve = 1;
     url.uri_part = 0;
