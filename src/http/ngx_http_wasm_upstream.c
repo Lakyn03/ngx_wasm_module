@@ -62,6 +62,7 @@ ngx_http_wasm_upstream_init_peer(ngx_http_request_t *r,
     ngx_http_upstream_srv_conf_t *us)
 {
     ngx_http_upstream_t                 *u;
+    ngx_http_wasm_req_ctx_t             *rctx;
     ngx_http_wasm_srv_conf_t            *wscf;
     ngx_http_wasm_upstream_peer_data_t  *up;
 
@@ -93,6 +94,10 @@ ngx_http_wasm_upstream_init_peer(ngx_http_request_t *r,
     u->peer.free = ngx_http_wasm_upstream_free_peer;
     u->peer.notify = ngx_http_wasm_upstream_notify_peer;
     u->peer.test_next = ngx_http_wasm_upstream_test_next;
+
+    if (ngx_http_wasm_rctx(r, &rctx) == NGX_OK) {
+        rctx->upstream_peer = up;
+    }
 
     return NGX_OK;
 }
@@ -233,28 +238,31 @@ ngx_int_t
 ngx_http_wasm_upstream_test_next(ngx_peer_connection_t *pc, void *data,
     ngx_uint_t status)
 {
-    void                               *peer_data;
     ngx_int_t                           rc;
     ngx_http_request_t                  *r;
     ngx_http_wasm_req_ctx_t             *rctx;
-    ngx_http_wasm_upstream_peer_data_t  *up = data;
+    ngx_http_wasm_upstream_peer_data_t  *up;
+
+    r = pc->connection->data;
+    rc = ngx_http_wasm_rctx(r, &rctx);
+    if (rc != NGX_OK) {
+        return NGX_OK;
+    }
+
+    up = rctx->upstream_peer;
+    if (up == NULL) {
+        return NGX_OK;
+    }
 
     if (up->sockaddr && up->socklen) {
-        r = up->request;
-        rc = ngx_http_wasm_rctx(r, &rctx);
-        if (rc != NGX_OK) {
-            return NGX_OK;
-        }
-
         up->accept_resp = 0;
         up->last_status = status;
 
-        peer_data = r->upstream->peer.data;
-        r->upstream->peer.data = data;
+        r->upstream->peer.data = up;
 
         ngx_proxy_wasm_upstream_resume(rctx, NGX_PROXY_WASM_STEP_UPSTREAM_SPECIAL_RESPONSE);
 
-        r->upstream->peer.data = peer_data;
+        r->upstream->peer.data = data;
 
         if (up->accept_resp) {
             return NGX_DECLINED;

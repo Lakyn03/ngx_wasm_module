@@ -54,6 +54,10 @@ struct ngx_http_wasm_req_ctx_s {
     ngx_chain_t                       *local_resp_body;
     off_t                              local_resp_body_len;
 
+    /* upstream */
+
+    void                               *upstream_peer;
+
     /* flags */
 
     unsigned                           local_resp_flushed:1;    /* local response can only be flushed once */

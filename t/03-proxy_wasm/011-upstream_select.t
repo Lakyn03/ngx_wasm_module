@@ -4,7 +4,7 @@ use strict;
 use lib '.';
 use t::TestWasmX;
 
-plan tests => 240;
+plan tests => 243;
 run_tests();
 
 __DATA__
@@ -1344,5 +1344,38 @@ qr/(free|get) keepalive peer: (saving|using) connection/
 --- grep_error_log_out eval
 ["free keepalive peer: saving connection\n",
 "get keepalive peer: using connection\nfree keepalive peer: saving connection\n"]
+--- no_error_log
+[emerg]
+
+
+
+=== TEST 43: wasm_upstream_special_response with keepalive - no connection reused
+--- load_nginx_modules: ngx_http_echo_module
+--- wasm_modules: hostcalls
+--- http_config
+    server {
+        listen       8891;
+
+        location / {
+            return 404;
+        }
+    }
+    proxy_next_upstream_tries 2;
+    proxy_next_upstream http_404;
+    upstream test_upstream {
+        server 0.0.0.0;
+        wasm_upstream_select;
+        keepalive 32;
+    }
+--- config
+    location /t {
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_wasm hostcalls 'test=/t/set_upstream on=upstream_select ip=127.0.0.1 port=8891';
+        proxy_pass http://test_upstream/;
+    }
+--- error_code: 404
+--- error_log
+on_upstream_special_response, status: 404
 --- no_error_log
 [emerg]
