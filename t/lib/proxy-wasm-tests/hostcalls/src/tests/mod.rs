@@ -70,6 +70,21 @@ pub(crate) fn test_log_response_body(ctx: &TestHttp) {
     }
 }
 
+pub(crate) fn test_log_upstream_response_header(ctx: &TestHttp) {
+    if let Some(header_name) = ctx.config.get("name") {
+        let value = ctx.get_http_upstream_response_header(header_name.as_str());
+        if value.is_some() {
+            info!("upstream resp header \"{}: {}\"", header_name, value.unwrap());
+        }
+    }
+}
+
+pub(crate) fn test_log_upstream_response_headers(ctx: &TestHttp) {
+    for (name, value) in ctx.get_http_upstream_response_headers() {
+        info!("upstream resp {}: {}", name, value)
+    }
+}
+
 pub(crate) fn test_log_response_header(ctx: &TestHttp) {
     if let Some(header_name) = ctx.config.get("name") {
         let value = ctx.get_http_response_header(header_name.as_str());

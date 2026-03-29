@@ -63,6 +63,8 @@ impl TestHttp {
             "/t/log/request_header" => test_log_request_header(self),
             "/t/log/request_headers" => test_log_request_headers(self),
             "/t/log/request_body" => test_log_request_body(self),
+            "/t/log/upstream_response_header" => test_log_upstream_response_header(self),
+            "/t/log/upstream_response_headers" => test_log_upstream_response_headers(self),
             "/t/log/response_header" => test_log_response_header(self),
             "/t/log/response_headers" => test_log_response_headers(self),
             "/t/log/response_body" => test_log_response_body(self),
