@@ -267,6 +267,43 @@ pub(crate) fn test_accept_response(ctx: &TestHttp) {
     }
 }
 
+pub(crate) fn test_get_upstream_timeouts(ctx: &TestHttp) {
+    let (connect, send, read) = ctx.get_upstream_timeouts();
+    info!("upstream timeouts - connect: \"{}\", send: \"{}\", read: \"{}\"", connect, send, read);
+}
+
+pub(crate) fn test_set_upstream_timeouts(ctx: &TestHttp) {
+    let connect = ctx.config.get("connect").map_or(0, |v| v.parse().unwrap_or(0));
+    let send = ctx.config.get("send").map_or(0, |v| v.parse().unwrap_or(0));
+    let read = ctx.config.get("read").map_or(0, |v| v.parse().unwrap_or(0));
+
+    ctx.set_upstream_timeouts(connect, send, read);
+}
+
+pub(crate) fn test_set_upstream_timeouts_if_header(ctx: &TestHttp) {
+    let header_name = ctx.config.get("header").unwrap();
+    if ctx.get_http_request_header(header_name).is_some() {
+        let connect = ctx.config.get("connect").map_or(0, |v| v.parse().unwrap_or(0));
+        let send = ctx.config.get("send").map_or(0, |v| v.parse().unwrap_or(0));
+        let read = ctx.config.get("read").map_or(0, |v| v.parse().unwrap_or(0));
+
+        ctx.set_upstream_timeouts(connect, send, read);
+    }
+}
+
+pub(crate) fn test_set_upstream_timeouts_rotate(ctx: &TestHttp) {
+    let values_str = ctx.config.get("values").unwrap().clone();
+    let values: Vec<&str> = values_str.split(',').collect();
+    let entry = values[ctx.upstream_index % values.len()];
+
+    let parts: Vec<&str> = entry.split(':').collect();
+    let connect: u32 = parts[0].parse().unwrap_or(0);
+    let send: u32 = parts[1].parse().unwrap_or(0);
+    let read: u32 = parts[2].parse().unwrap_or(0);
+
+    ctx.set_upstream_timeouts(connect, send, read);
+}
+
 pub(crate) fn test_set_request_headers(ctx: &TestHttp) {
     ctx.set_http_request_headers(vec![("Hello", "world"), ("Welcome", "wasm")]);
 }
