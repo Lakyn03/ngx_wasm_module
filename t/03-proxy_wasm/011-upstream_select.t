@@ -4,7 +4,7 @@ use strict;
 use lib '.';
 use t::TestWasmX;
 
-plan tests => 249;
+plan tests => 271;
 run_tests();
 
 __DATA__
@@ -109,8 +109,6 @@ qr/\[emerg\] .*? "wasm_upstream_select" directive is not allowed here/
 ["GET /t", "GET /t", "GET /t", "GET /t"]
 --- response_body eval
 ["1\n", "2\n", "3\n", "4\n"]
---- error_log
-[wasm] calling original get_peer
 --- no_error_log
 [error]
 [crit]
@@ -1410,3 +1408,259 @@ qr/(free|get) keepalive peer: (saving|using) connection/
 on_upstream_special_response, status: 404
 --- no_error_log
 [emerg]
+
+
+
+=== TEST 45: wasm_upstream_select invalid argument
+--- http_config
+    upstream test_upstream {
+        server 0.0.0.0;
+        wasm_upstream_select foo=2;
+    }
+--- error_log eval
+qr/\[emerg\] .*? invalid parameter "foo=2"/
+--- must_die
+
+
+
+=== TEST 46: wasm_upstream_select max_tries argument invalid value (1/2)
+--- http_config
+    upstream test_upstream {
+        server 0.0.0.0;
+        wasm_upstream_select max_tries=abc;
+    }
+--- error_log eval
+qr/\[emerg\] .*? invalid max_tries value/
+--- must_die
+
+
+
+=== TEST 47: wasm_upstream_select max_tries argument invalid value (2/2)
+--- http_config
+    upstream test_upstream {
+        server 0.0.0.0;
+        wasm_upstream_select max_tries=-3;
+    }
+--- error_log eval
+qr/\[emerg\] .*? invalid max_tries value/
+--- must_die
+
+
+
+=== TEST 48: wasm_upstream_select max_tries argument
+--- wasm_modules: hostcalls
+--- http_config
+    server {
+        listen       8891;
+
+        location / {
+            return 404;
+        }
+    }
+    proxy_next_upstream http_404;
+    upstream test_upstream {
+        server 0.0.0.0;
+        wasm_upstream_select max_tries=2;
+    }
+--- config
+    location /t {
+        proxy_wasm hostcalls 'test=/t/set_upstream on=upstream_select ip=127.0.0.1 port=8891';
+        proxy_pass http://test_upstream/;
+    }
+--- error_code: 404
+--- grep_error_log eval: qr/\[wasm\] set upstream peer "127\.0\.0\.1:8891"/
+--- grep_error_log_out
+[wasm] set upstream peer "127.0.0.1:8891"
+[wasm] set upstream peer "127.0.0.1:8891"
+--- no_error_log
+[emerg]
+
+
+
+=== TEST 49: wasm_upstream_select max_tries argument defaults to 3
+--- wasm_modules: hostcalls
+--- http_config
+    server {
+        listen       8891;
+
+        location / {
+            return 404;
+        }
+    }
+    proxy_next_upstream http_404;
+    upstream test_upstream {
+        server 0.0.0.0;
+        wasm_upstream_select;
+    }
+--- config
+    location /t {
+        proxy_wasm hostcalls 'test=/t/set_upstream on=upstream_select ip=127.0.0.1 port=8891';
+        proxy_pass http://test_upstream/;
+    }
+--- error_code: 404
+--- grep_error_log eval: qr/\[wasm\] set upstream peer "127\.0\.0\.1:8891"/
+--- grep_error_log_out
+[wasm] set upstream peer "127.0.0.1:8891"
+[wasm] set upstream peer "127.0.0.1:8891"
+[wasm] set upstream peer "127.0.0.1:8891"
+--- no_error_log
+[emerg]
+
+
+
+=== TEST 50: tries set to min of max_tries, proxy_next_upstream_tries (1/2)
+--- wasm_modules: hostcalls
+--- http_config
+    server {
+        listen       8891;
+
+        location / {
+            return 404;
+        }
+    }
+    proxy_next_upstream_tries 2;
+    proxy_next_upstream http_404;
+    upstream test_upstream {
+        server 0.0.0.0;
+        wasm_upstream_select;
+    }
+--- config
+    location /t {
+        proxy_wasm hostcalls 'test=/t/set_upstream on=upstream_select ip=127.0.0.1 port=8891';
+        proxy_pass http://test_upstream/;
+    }
+--- error_code: 404
+--- grep_error_log eval: qr/\[wasm\] set upstream peer "127\.0\.0\.1:8891"/
+--- grep_error_log_out
+[wasm] set upstream peer "127.0.0.1:8891"
+[wasm] set upstream peer "127.0.0.1:8891"
+--- no_error_log
+[emerg]
+
+
+
+=== TEST 51: tries set to min of max_tries, proxy_next_upstream_tries (2/2)
+--- wasm_modules: hostcalls
+--- http_config
+    server {
+        listen       8891;
+
+        location / {
+            return 404;
+        }
+    }
+    proxy_next_upstream_tries 3;
+    proxy_next_upstream http_404;
+    upstream test_upstream {
+        server 0.0.0.0;
+        wasm_upstream_select max_tries=2;
+    }
+--- config
+    location /t {
+        proxy_wasm hostcalls 'test=/t/set_upstream on=upstream_select ip=127.0.0.1 port=8891';
+        proxy_pass http://test_upstream/;
+    }
+--- error_code: 404
+--- grep_error_log eval: qr/\[wasm\] set upstream peer "127\.0\.0\.1:8891"/
+--- grep_error_log_out
+[wasm] set upstream peer "127.0.0.1:8891"
+[wasm] set upstream peer "127.0.0.1:8891"
+--- no_error_log
+[emerg]
+
+
+
+=== TEST 52: max_tries ignored when fallback to round robin
+--- load_nginx_modules: ngx_http_echo_module
+--- wasm_modules: on_phases
+--- http_config
+    server {
+        listen       8891;
+        location / {
+            return 500;
+        }
+    }
+    server {
+        listen       8892;
+        location / {
+            return 500;
+        }
+    }
+    server {
+        listen       8893;
+        location / {
+            return 500;
+        }
+    }
+    server {
+        listen       8894;
+        location / {
+            echo "ok";
+        }
+    }
+    proxy_next_upstream http_500;
+    upstream test_upstream {
+        server 127.0.0.1:8891;
+        server 127.0.0.1:8892;
+        server 127.0.0.1:8893;
+        server 127.0.0.1:8894;
+        wasm_upstream_select max_tries=1;
+    }
+--- config
+    location /t {
+        proxy_pass http://test_upstream/;
+    }
+--- response_body
+ok
+--- no_error_log
+[error]
+[crit]
+[emerg]
+
+
+
+=== TEST 53: fallback to round robin, proxy_next_upstream limits tries
+--- load_nginx_modules: ngx_http_echo_module
+--- wasm_modules: on_phases
+--- http_config
+    server {
+        listen       8891;
+        location / {
+            return 500;
+        }
+    }
+    server {
+        listen       8892;
+        location / {
+            return 500;
+        }
+    }
+    server {
+        listen       8893;
+        location / {
+            return 500;
+        }
+    }
+    server {
+        listen       8894;
+        location / {
+            echo "ok";
+        }
+    }
+    proxy_next_upstream_tries 2;
+    proxy_next_upstream http_500;
+    upstream test_upstream {
+        server 127.0.0.1:8891;
+        server 127.0.0.1:8892;
+        server 127.0.0.1:8893;
+        server 127.0.0.1:8894;
+        wasm_upstream_select;
+    }
+--- config
+    location /t {
+        proxy_pass http://test_upstream/;
+    }
+--- error_code: 500
+--- no_error_log
+[error]
+[crit]

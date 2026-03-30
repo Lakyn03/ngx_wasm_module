@@ -9,9 +9,30 @@
 char *
 ngx_http_wasm_upstream_select_directive(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 {
+    ngx_str_t                     *values, *value;
+    ngx_int_t                      n;
     ngx_wavm_t                    *vm;
     ngx_http_wasm_srv_conf_t      *wscf = conf;
     ngx_http_upstream_srv_conf_t  *uscf;
+
+    if (cf->args->nelts > 1) {
+        values = cf->args->elts;
+        value = &values[1];
+        if (ngx_strncmp("max_tries=", value->data, 10) != 0) {
+            ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
+                           "invalid parameter \"%V\"", value);
+            return NGX_CONF_ERROR;
+        }
+
+        n = ngx_atoi(value->data + 10, value->len - 10);
+        if (n == NGX_ERROR) {
+            ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
+                           "invalid max_tries value in \"%V\"", value);
+            return NGX_CONF_ERROR;
+        }
+
+        wscf->upstream_max_tries = n;
+    }
 
     uscf = ngx_http_conf_get_module_srv_conf(cf, ngx_http_upstream_module);
 
@@ -87,10 +108,10 @@ ngx_http_wasm_upstream_init_peer(ngx_http_request_t *r,
 
     rctx->upstream_peer = up;
     u = r->upstream;
-
-    if (u->conf->next_upstream_tries) {
-        u->peer.tries = u->conf->next_upstream_tries;
-    }
+    u->peer.tries = u->conf->next_upstream_tries
+                    ? ngx_min(u->conf->next_upstream_tries,
+                              wscf->upstream_max_tries)
+                    : wscf->upstream_max_tries;
 
     up->data = u->peer.data;
     up->original_get_peer = u->peer.get;
