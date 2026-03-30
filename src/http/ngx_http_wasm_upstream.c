@@ -413,3 +413,39 @@ ngx_http_wasm_get_last_upstream_state(ngx_proxy_wasm_ctx_t *pwctx,
              + (r->upstream_states->nelts - 1);
     return NGX_OK;
 }
+
+
+ngx_int_t
+ngx_http_wasm_set_upstream_timeouts(ngx_http_request_t *r, ngx_msec_t connect,
+    ngx_msec_t send, ngx_msec_t read)
+{
+    ngx_http_upstream_conf_t            *conf;
+    ngx_http_wasm_upstream_peer_data_t  *up;
+
+    up = r->upstream->peer.data;
+
+    if (!up->original_conf) {
+        conf = ngx_palloc(r->pool, sizeof(ngx_http_upstream_conf_t));
+        if (conf == NULL) {
+            return NGX_ERROR;
+        }
+
+        up->original_conf = r->upstream->conf;
+        *conf = *r->upstream->conf;
+        r->upstream->conf = conf;
+    }
+
+    conf = r->upstream->conf;
+
+    if (connect) {
+        conf->connect_timeout = ngx_min(connect, up->original_conf->connect_timeout);
+    }
+    if (send) {
+        conf->send_timeout = ngx_min(send, up->original_conf->send_timeout);
+    }
+    if (read) {
+        conf->read_timeout = ngx_min(read, up->original_conf->read_timeout);
+    }
+
+    return NGX_OK;
+}
