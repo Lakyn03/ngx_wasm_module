@@ -7,9 +7,11 @@
 typedef struct {
     ngx_http_request_t                 *request;
 
-    void                              *data;
-    ngx_event_get_peer_pt              original_get_peer;
-    ngx_event_free_peer_pt             original_free_peer;
+    void                               *data;
+    ngx_event_get_peer_pt               original_get_peer;
+    ngx_event_free_peer_pt              original_free_peer;
+
+    ngx_http_upstream_conf_t           *original_conf;
 
     struct sockaddr                    *sockaddr;
     socklen_t                           socklen;
@@ -43,5 +45,7 @@ ngx_int_t ngx_http_wasm_set_upstream(ngx_http_wasm_upstream_peer_data_t *up,
     ngx_str_t *addr, ngx_int_t port, ngx_pool_t *pool);
 ngx_int_t ngx_http_wasm_get_last_upstream_state(ngx_proxy_wasm_ctx_t *pwctx,
     ngx_http_upstream_state_t **state);
+ngx_int_t ngx_http_wasm_set_upstream_timeouts(ngx_http_request_t *r, ngx_msec_t connect,
+    ngx_msec_t send, ngx_msec_t read);
 
 #endif //_NGX_HTTP_WASM_UPSTREAM_H_INCLUDED_

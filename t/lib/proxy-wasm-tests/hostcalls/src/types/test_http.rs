@@ -83,10 +83,14 @@ impl TestHttp {
             "/t/send_local_response/set_special_headers" => test_set_special_headers(self),
             "/t/send_local_response/set_headers_escaping" => test_set_headers_escaping(self),
 
-            /* set_upstream */
+            /* upstream */
             "/t/set_upstream" => test_set_upstream(self),
             "/t/set_upstreams" => test_set_upstreams(self),
             "/t/accept_response" => test_accept_response(self),
+            "/t/get_upstream_timeouts" => test_get_upstream_timeouts(self),
+            "/t/set_upstream_timeouts" => test_set_upstream_timeouts(self),
+            "/t/set_upstream_timeouts_if_header" => test_set_upstream_timeouts_if_header(self),
+            "/t/set_upstream_timeouts_rotate" => test_set_upstream_timeouts_rotate(self),
 
             /* set/add request/response headers */
             "/t/set_request_headers" => test_set_request_headers(self),

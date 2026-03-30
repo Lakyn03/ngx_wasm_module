@@ -230,7 +230,7 @@ static ngx_command_t  ngx_http_wasm_module_cmds[] = {
     /* upstream select */
 
     { ngx_string("wasm_upstream_select"),
-    NGX_HTTP_UPS_CONF|NGX_CONF_NOARGS,
+    NGX_HTTP_UPS_CONF|NGX_CONF_NOARGS|NGX_CONF_TAKE1,
     ngx_http_wasm_upstream_select_directive,
     NGX_HTTP_SRV_CONF_OFFSET,
     0,
@@ -355,6 +355,8 @@ ngx_http_wasm_create_srv_conf(ngx_conf_t *cf)
     if (scf == NULL) {
         return NULL;
     }
+
+    scf->upstream_max_tries = 3;
 
     return scf;
 }

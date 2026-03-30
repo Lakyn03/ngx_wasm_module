@@ -9,9 +9,30 @@
 char *
 ngx_http_wasm_upstream_select_directive(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 {
+    ngx_str_t                     *values, *value;
+    ngx_int_t                      n;
     ngx_wavm_t                    *vm;
     ngx_http_wasm_srv_conf_t      *wscf = conf;
     ngx_http_upstream_srv_conf_t  *uscf;
+
+    if (cf->args->nelts > 1) {
+        values = cf->args->elts;
+        value = &values[1];
+        if (ngx_strncmp("max_tries=", value->data, 10) != 0) {
+            ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
+                           "invalid parameter \"%V\"", value);
+            return NGX_CONF_ERROR;
+        }
+
+        n = ngx_atoi(value->data + 10, value->len - 10);
+        if (n == NGX_ERROR) {
+            ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
+                           "invalid max_tries value in \"%V\"", value);
+            return NGX_CONF_ERROR;
+        }
+
+        wscf->upstream_max_tries = n;
+    }
 
     uscf = ngx_http_conf_get_module_srv_conf(cf, ngx_http_upstream_module);
 
@@ -61,6 +82,7 @@ ngx_int_t
 ngx_http_wasm_upstream_init_peer(ngx_http_request_t *r,
     ngx_http_upstream_srv_conf_t *us)
 {
+    ngx_int_t                            rc;
     ngx_http_upstream_t                 *u;
     ngx_http_wasm_req_ctx_t             *rctx;
     ngx_http_wasm_srv_conf_t            *wscf;
@@ -77,11 +99,19 @@ ngx_http_wasm_upstream_init_peer(ngx_http_request_t *r,
         return NGX_ERROR;
     }
 
-    u = r->upstream;
-
-    if (u->conf->next_upstream_tries) {
-        u->peer.tries = u->conf->next_upstream_tries;
+    rc = ngx_http_wasm_rctx(r, &rctx);
+    if (rc == NGX_DECLINED) {
+        return NGX_OK;
+    } else if (rc != NGX_OK) {
+        return NGX_ERROR;
     }
+
+    rctx->upstream_peer = up;
+    u = r->upstream;
+    u->peer.tries = u->conf->next_upstream_tries
+                    ? ngx_min(u->conf->next_upstream_tries,
+                              wscf->upstream_max_tries)
+                    : wscf->upstream_max_tries;
 
     up->data = u->peer.data;
     up->original_get_peer = u->peer.get;
@@ -94,10 +124,6 @@ ngx_http_wasm_upstream_init_peer(ngx_http_request_t *r,
     u->peer.free = ngx_http_wasm_upstream_free_peer;
     u->peer.notify = ngx_http_wasm_upstream_notify_peer;
     u->peer.test_next = ngx_http_wasm_upstream_test_next;
-
-    if (ngx_http_wasm_rctx(r, &rctx) == NGX_OK) {
-        rctx->upstream_peer = up;
-    }
 
     return NGX_OK;
 }
@@ -385,5 +411,41 @@ ngx_http_wasm_get_last_upstream_state(ngx_proxy_wasm_ctx_t *pwctx,
 
     *state = (ngx_http_upstream_state_t *) r->upstream_states->elts
              + (r->upstream_states->nelts - 1);
+    return NGX_OK;
+}
+
+
+ngx_int_t
+ngx_http_wasm_set_upstream_timeouts(ngx_http_request_t *r, ngx_msec_t connect,
+    ngx_msec_t send, ngx_msec_t read)
+{
+    ngx_http_upstream_conf_t            *conf;
+    ngx_http_wasm_upstream_peer_data_t  *up;
+
+    up = r->upstream->peer.data;
+
+    if (!up->original_conf) {
+        conf = ngx_palloc(r->pool, sizeof(ngx_http_upstream_conf_t));
+        if (conf == NULL) {
+            return NGX_ERROR;
+        }
+
+        up->original_conf = r->upstream->conf;
+        *conf = *r->upstream->conf;
+        r->upstream->conf = conf;
+    }
+
+    conf = r->upstream->conf;
+
+    if (connect) {
+        conf->connect_timeout = ngx_min(connect, up->original_conf->connect_timeout);
+    }
+    if (send) {
+        conf->send_timeout = ngx_min(send, up->original_conf->send_timeout);
+    }
+    if (read) {
+        conf->read_timeout = ngx_min(read, up->original_conf->read_timeout);
+    }
+
     return NGX_OK;
 }
