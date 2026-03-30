@@ -61,6 +61,7 @@ ngx_int_t
 ngx_http_wasm_upstream_init_peer(ngx_http_request_t *r,
     ngx_http_upstream_srv_conf_t *us)
 {
+    ngx_int_t                            rc;
     ngx_http_upstream_t                 *u;
     ngx_http_wasm_req_ctx_t             *rctx;
     ngx_http_wasm_srv_conf_t            *wscf;
@@ -77,6 +78,14 @@ ngx_http_wasm_upstream_init_peer(ngx_http_request_t *r,
         return NGX_ERROR;
     }
 
+    rc = ngx_http_wasm_rctx(r, &rctx);
+    if (rc == NGX_DECLINED) {
+        return NGX_OK;
+    } else if (rc != NGX_OK) {
+        return NGX_ERROR;
+    }
+
+    rctx->upstream_peer = up;
     u = r->upstream;
 
     if (u->conf->next_upstream_tries) {
@@ -94,10 +103,6 @@ ngx_http_wasm_upstream_init_peer(ngx_http_request_t *r,
     u->peer.free = ngx_http_wasm_upstream_free_peer;
     u->peer.notify = ngx_http_wasm_upstream_notify_peer;
     u->peer.test_next = ngx_http_wasm_upstream_test_next;
-
-    if (ngx_http_wasm_rctx(r, &rctx) == NGX_OK) {
-        rctx->upstream_peer = up;
-    }
 
     return NGX_OK;
 }
