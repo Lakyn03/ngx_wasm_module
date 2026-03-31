@@ -193,7 +193,7 @@ static ngx_command_t  ngx_http_wasm_module_cmds[] = {
     /* proxy_wasm */
 
     { ngx_string("proxy_wasm"),
-      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE12,
+      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE123,
       ngx_http_wasm_proxy_wasm_directive,
       NGX_HTTP_LOC_CONF_OFFSET,
       NGX_HTTP_MODULE,

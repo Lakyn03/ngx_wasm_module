@@ -437,7 +437,7 @@ ngx_http_wasm_prepend_resp_body(ngx_http_wasm_req_ctx_t *rctx, ngx_str_t *body)
 
 ngx_int_t
 ngx_http_wasm_ops_add_filter(ngx_wasm_ops_plan_t *plan,
-    ngx_str_t *name, ngx_str_t *config, ngx_wavm_t *vm)
+    ngx_str_t *name, ngx_str_t *config, ngx_str_t *upstream, ngx_wavm_t *vm)
 {
     ngx_int_t                       rc = NGX_ERROR;
     ngx_wasm_op_t                  *op;
@@ -464,6 +464,14 @@ ngx_http_wasm_ops_add_filter(ngx_wasm_ops_plan_t *plan,
         filter->config.len = config->len;
         filter->config.data = ngx_pstrdup(filter->pool, config);
         if (filter->config.data == NULL) {
+            goto error;
+        }
+    }
+
+    if (upstream) {
+        filter->upstream.len = upstream->len;
+        filter->upstream.data = ngx_pstrdup(filter->pool, upstream);
+        if (filter->upstream.data == NULL) {
             goto error;
         }
     }
