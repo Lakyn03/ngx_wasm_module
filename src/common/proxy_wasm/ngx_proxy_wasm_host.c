@@ -325,6 +325,7 @@ ngx_proxy_wasm_hfuncs_get_buffer(ngx_wavm_instance_t *instance,
     char                          *trapmsg = NULL;
     u_char                        *start = NULL;
     ngx_chain_t                   *cl = NULL;
+    ngx_int_t                      rc;
     ngx_buf_t                     *buf;
     uint32_t                      *rlen;
     ngx_wavm_ptr_t                *rbuf, p;
@@ -348,6 +349,15 @@ ngx_proxy_wasm_hfuncs_get_buffer(ngx_wavm_instance_t *instance,
     case NGX_PROXY_WASM_BUFFER_VM_CONFIGURATION:
         start = pwexec->filter->module->config.data;
         len = pwexec->filter->module->config.len;
+        break;
+
+    case NGX_PROXY_WASM_BUFFER_UPSTREAM_CONFIGURATION:
+        rc = ngx_http_wasm_get_upstreams(pwexec, &start, &len);
+        if (rc == NGX_DECLINED) {
+            len = 0;
+        } else if (rc == NGX_ERROR) {
+            return ngx_proxy_wasm_result_err(rets);
+        }
         break;
 
     default:

@@ -449,3 +449,97 @@ ngx_http_wasm_set_upstream_timeouts(ngx_http_request_t *r, ngx_msec_t connect,
 
     return NGX_OK;
 }
+
+
+ngx_int_t
+ngx_http_wasm_get_upstreams(ngx_proxy_wasm_exec_t *pwexec, u_char **ret_start, size_t *ret_len)
+{
+    size_t                          i, j, len, total_addrs;
+    u_char                         *p;
+    ngx_str_t                      *name, *addr;
+    ngx_http_upstream_server_t     *servers;
+    ngx_http_upstream_srv_conf_t   *uscf, **uscfp;
+    ngx_http_upstream_main_conf_t  *umcf;
+
+    umcf = ngx_http_cycle_get_module_main_conf(ngx_cycle, ngx_http_upstream_module);
+    if (umcf == NULL) {
+        return NGX_DECLINED;
+    }
+
+    name = &pwexec->filter->upstream;
+    if (name->len == 0) {
+        return NGX_DECLINED;
+    }
+
+    uscfp = umcf->upstreams.elts;
+    uscf = NULL;
+    total_addrs = 0;
+
+    for (i = 0; i < umcf->upstreams.nelts; i++) {
+        if (uscfp[i]->host.len == name->len
+            && ngx_strncasecmp(uscfp[i]->host.data, name->data, name->len) == 0)
+        {
+            uscf = uscfp[i];
+            break;
+        }
+    }
+
+    if (uscf == NULL) {
+        return NGX_DECLINED;
+    }
+
+    len = NGX_PROXY_WASM_PTR_SIZE;  /* servers count */
+    servers = uscf->servers->elts;
+
+    for (i = 0; i < uscf->servers->nelts; i++) {
+        if (servers[i].down) {
+            continue;
+        }
+
+        for (j = 0; j < servers[i].naddrs; j++) {
+            total_addrs++;
+
+            len += NGX_PROXY_WASM_PTR_SIZE;       /* addr length */
+            len += servers[i].addrs[j].name.len;  /* addr */
+            len += 4 * NGX_PROXY_WASM_PTR_SIZE;   /* weight, max_fails, fail_timeout, backup */
+        }
+    }
+
+    p = ngx_pcalloc(pwexec->pool, len);
+    if (p == NULL) {
+        return NGX_ERROR;
+    }
+
+    *ret_start = p;
+    *ret_len = len;
+
+    *(uint32_t *)p = total_addrs;
+    p += NGX_PROXY_WASM_PTR_SIZE;
+
+    for (i = 0; i < uscf->servers->nelts; i++) {
+        if (servers[i].down) {
+            continue;
+        }
+
+        for (j = 0; j < servers[i].naddrs; j++) {
+            addr = &servers[i].addrs[j].name;
+
+            *(uint32_t *)p = addr->len;
+            p += NGX_PROXY_WASM_PTR_SIZE;
+
+            ngx_memcpy(p, addr->data, addr->len);
+            p += addr->len;
+
+            *(uint32_t *)p = servers[i].weight;
+            p += NGX_PROXY_WASM_PTR_SIZE;
+            *(uint32_t *)p = servers[i].max_fails;
+            p += NGX_PROXY_WASM_PTR_SIZE;
+            *(uint32_t *)p = servers[i].fail_timeout;
+            p += NGX_PROXY_WASM_PTR_SIZE;
+            *(uint32_t *)p = servers[i].backup;
+            p += NGX_PROXY_WASM_PTR_SIZE;
+        }
+    }
+
+    return NGX_OK;
+}

@@ -407,7 +407,7 @@ dependencies = [
 [[package]]
 name = "proxy-wasm"
 version = "0.2.5-dev"
-source = "git+https://github.com/Lakyn03/proxy-wasm-rust-sdk.git?branch=main#05f903d1bc5c1054b35307f0f43272bb395c920e"
+source = "git+https://github.com/Lakyn03/proxy-wasm-rust-sdk.git?branch=main#900ce5ac7ea9711f320dd5ffe79edc9be5c2b38b"
 dependencies = [
  "hashbrown 0.16.1",
  "log",
