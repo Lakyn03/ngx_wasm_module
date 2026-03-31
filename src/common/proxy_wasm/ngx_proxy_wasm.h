@@ -7,6 +7,7 @@
 
 
 #define NGX_PROXY_WASM_ROOT_CTX_ID  0
+#define NGX_PROXY_WASM_PTR_SIZE  4
 
 
 typedef enum {
@@ -129,6 +130,7 @@ typedef enum {
     NGX_PROXY_WASM_BUFFER_VM_CONFIGURATION = 6,
     NGX_PROXY_WASM_BUFFER_PLUGIN_CONFIGURATION = 7,
     NGX_PROXY_WASM_BUFFER_FOREIGN_FUNCTION_ARGUMENTS = 8,
+    NGX_PROXY_WASM_BUFFER_UPSTREAM_CONFIGURATION = 9,
 } ngx_proxy_wasm_buffer_type_e;
 
 
@@ -334,6 +336,7 @@ struct ngx_proxy_wasm_filter_s {
     ngx_log_t                     *log;
     ngx_pool_t                    *pool;
     ngx_str_t                      config;
+    ngx_str_t                      upstream;
     uintptr_t                      data;
     ngx_rbtree_node_t              node;
     ngx_wavm_module_t             *module;

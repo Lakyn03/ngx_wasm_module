@@ -47,5 +47,6 @@ ngx_int_t ngx_http_wasm_get_last_upstream_state(ngx_proxy_wasm_ctx_t *pwctx,
     ngx_http_upstream_state_t **state);
 ngx_int_t ngx_http_wasm_set_upstream_timeouts(ngx_http_request_t *r, ngx_msec_t connect,
     ngx_msec_t send, ngx_msec_t read);
+ngx_int_t ngx_http_wasm_get_upstreams(ngx_proxy_wasm_exec_t *pwexec, u_char **start, size_t *len);
 
 #endif //_NGX_HTTP_WASM_UPSTREAM_H_INCLUDED_

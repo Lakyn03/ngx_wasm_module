@@ -12,9 +12,6 @@
 #endif
 
 
-#define NGX_PROXY_WASM_PTR_SIZE  4
-
-
 static ngx_str_t  ngx_proxy_wasm_errlist[] = {
     ngx_null_string,
     ngx_string("unknown ABI version"),
