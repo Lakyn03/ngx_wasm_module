@@ -2001,7 +2001,9 @@ ngx_proxy_wasm_hfuncs_proxy_accept_upstream_response(ngx_wavm_instance_t *instan
     }
 
     if (r->upstream == NULL) {
-        return NGX_ERROR;
+        return ngx_proxy_wasm_result_trap(pwexec,
+                                          "no upstream available",
+                                          rets, NGX_WAVM_BAD_USAGE);
     }
 
     up = r->upstream->peer.data;
