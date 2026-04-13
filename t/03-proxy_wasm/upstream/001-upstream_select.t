@@ -763,7 +763,7 @@ ok
 [wasm] set upstream peer "127.0.0.1:8891"
 [hostcalls] on_upstream_info, last_state: Failed
 [wasm] set upstream peer "127.0.0.1:8892"
-[hostcalls] on_upstream_info, last_state: Ok
+[hostcalls] on_upstream_info, last_state: Failed
 --- no_error_log
 [emerg]
 

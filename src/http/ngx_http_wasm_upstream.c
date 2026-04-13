@@ -215,10 +215,12 @@ void
 ngx_http_wasm_upstream_free_peer(ngx_peer_connection_t *pc, void *data,
     ngx_uint_t state)
 {
-    void                               *peer_data;
-    ngx_int_t                           rc;
+    void                                *peer_data;
+    ngx_int_t                            rc;
+    ngx_uint_t                           status, mask;
     ngx_http_request_t                  *r;
     ngx_http_wasm_req_ctx_t             *rctx;
+    ngx_http_upstream_next_t            *un;
     ngx_http_wasm_upstream_peer_data_t  *up = data;
 
     if (up->sockaddr && up->socklen) {
@@ -231,6 +233,25 @@ ngx_http_wasm_upstream_free_peer(ngx_peer_connection_t *pc, void *data,
         up->last_peer_state = state;
         if (pc->tries) {
             pc->tries--;
+        }
+
+        if (pc->tries == 0 && state == 0 && r->upstream->state) {
+
+            status = r->upstream->state->status;
+
+            for (un = ngx_http_upstream_next_errors; un->status; un++) {
+                if (status != un->status) {
+                    continue;
+                }
+
+                mask = un->mask;
+
+                if ((r->upstream->conf->next_upstream & mask) == mask) {
+                    up->last_peer_state = NGX_PEER_FAILED;
+                }
+
+                break;
+            }
         }
 
         up->sockaddr = NULL;
