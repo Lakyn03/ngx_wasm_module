@@ -12,6 +12,7 @@
     - [Nginx Properties]
     - [HTTP Dispatches]
     - [Foreign Functions]
+    - [Upstream selection]
 - [Supported Specifications]
     - [Tested SDKs](#tested-sdks)
     - [Supported Entrypoints](#supported-entrypoints)
@@ -613,7 +614,7 @@ enum WasmxForeignFunctions {
 
 [Back to TOC](#table-of-contents)
 
-### Upstream selection
+### Upstream Selection
 
 Proxy-Wasm filters can handle the decision-making behind choosing the 
 upstream server for each request. The process includes multiple callbacks
@@ -1209,6 +1210,7 @@ Proxy-Wasm SDK.
 [Nginx Properties]: #nginx-properties
 [HTTP Dispatches]: #http-dispatches
 [Foreign Functions]: #foreign-functions
+[Upstream Selection]: #upstream-selection
 [Supported Specifications]: #supported-specifications
 [Supported Properties]: #supported-properties
 [Examples]: #examples
