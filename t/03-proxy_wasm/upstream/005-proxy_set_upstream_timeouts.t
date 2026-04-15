@@ -181,7 +181,7 @@ host trap (bad usage): can only set upstream timeouts during "on_upstream_select
 
 
 
-=== TEST 7: set_upstream_timeouts called in on_upstream_special_response phase not allowed
+=== TEST 7: set_upstream_timeouts called in on_next_upstream phase not allowed
 --- load_nginx_modules: ngx_http_echo_module
 --- wasm_modules: hostcalls
 --- http_config
@@ -199,7 +199,7 @@ host trap (bad usage): can only set upstream timeouts during "on_upstream_select
 --- config
     location /t {
         proxy_wasm hostcalls 'test=/t/set_upstream on=upstream_select ip=127.0.0.1 port=8891';
-        proxy_wasm hostcalls 'test=/t/set_upstream_timeouts on=upstream_special_response connect=500 send=500 read=500';
+        proxy_wasm hostcalls 'test=/t/set_upstream_timeouts on=next_upstream connect=500 send=500 read=500';
         proxy_pass http://test_upstream/;
     }
 --- error_code: 500

@@ -1060,7 +1060,7 @@ wasm_upstream_select
 **default**  | none (max_tries=3 if not defined)
 **example**  | `wasm_upstream_select max_tries=4;`
 
-Enables upstream callbacks (`on_upstream_select`, `on_upstream_special_response`, 
+Enables upstream callbacks (`on_upstream_select`, `on_next_upstream`, 
 `on_upstream_info`) for modules which have requests routed to the particular 
 `upstream{}` block (using the `proxy_pass` directive). 
 

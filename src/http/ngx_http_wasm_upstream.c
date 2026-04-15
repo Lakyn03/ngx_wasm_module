@@ -307,7 +307,7 @@ ngx_http_wasm_upstream_test_next(ngx_peer_connection_t *pc, void *data,
 
         r->upstream->peer.data = up;
 
-        ngx_proxy_wasm_upstream_resume(rctx, NGX_PROXY_WASM_STEP_UPSTREAM_SPECIAL_RESPONSE);
+        ngx_proxy_wasm_upstream_resume(rctx, NGX_PROXY_WASM_STEP_NEXT_UPSTREAM);
 
         r->upstream->peer.data = data;
 

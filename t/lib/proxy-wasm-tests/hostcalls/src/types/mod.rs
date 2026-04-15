@@ -16,7 +16,7 @@ pub enum TestPhase {
     Log,
     UpstreamSelect,
     UpstreamInfo,
-    UpstreamSpecialResponse,
+    NextUpstream,
 }
 
 #[repr(u32)]

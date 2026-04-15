@@ -769,7 +769,7 @@ ok
 
 
 
-=== TEST 25: on_upstream_special_response called after special response before retry
+=== TEST 25: on_next_upstream called after special response before retry
 --- load_nginx_modules: ngx_http_echo_module
 --- wasm_modules: hostcalls
 --- http_config
@@ -798,10 +798,10 @@ ok
     }
 --- response_body
 ok
---- grep_error_log eval: qr/\[wasm\] set upstream peer "[^"]*"|\[hostcalls\] on_upstream_info, last_state: \w+|\[hostcalls\] on_upstream_special_response, status: \w+/
+--- grep_error_log eval: qr/\[wasm\] set upstream peer "[^"]*"|\[hostcalls\] on_upstream_info, last_state: \w+|\[hostcalls\] on_next_upstream, status: \w+/
 --- grep_error_log_out
 [wasm] set upstream peer "127.0.0.1:8891"
-[hostcalls] on_upstream_special_response, status: 500
+[hostcalls] on_next_upstream, status: 500
 [hostcalls] on_upstream_info, last_state: Failed
 [wasm] set upstream peer "127.0.0.1:8892"
 [hostcalls] on_upstream_info, last_state: Ok
@@ -810,7 +810,7 @@ ok
 
 
 
-=== TEST 26: connection refused - upstream_info failed, no upstream_special_response called
+=== TEST 26: connection refused - upstream_info failed, no next_upstream called
 --- load_nginx_modules: ngx_http_echo_module
 --- wasm_modules: hostcalls
 --- http_config
@@ -838,12 +838,12 @@ ok
 [wasm] set upstream peer "127.0.0.1:8891"
 [hostcalls] on_upstream_info, last_state: Ok
 --- no_error_log
-[wasm] accepting upstream special response
+[wasm] accepting upstream response
 [emerg]
 
 
 
-=== TEST 27: connection timeout - upstream_info failed, no upstream_special_response called
+=== TEST 27: connection timeout - upstream_info failed, no next_upstream called
 --- load_nginx_modules: ngx_http_echo_module
 --- wasm_modules: hostcalls
 --- http_config
@@ -872,7 +872,7 @@ ok
 [wasm] set upstream peer "127.0.0.1:8891"
 [hostcalls] on_upstream_info, last_state: Ok
 --- no_error_log
-[wasm] accepting upstream special response
+[wasm] accepting upstream response
 [emerg]
 
 
@@ -907,7 +907,7 @@ ok
 
 
 
-=== TEST 29: on_upstream_special_response not called after normal response
+=== TEST 29: on_next_upstream not called after normal response
 --- load_nginx_modules: ngx_http_echo_module
 --- wasm_modules: hostcalls
 --- http_config
@@ -934,7 +934,7 @@ ok
 [wasm] set upstream peer "127.0.0.1:8891"
 [hostcalls] on_upstream_info, last_state: Ok
 --- no_error_log
-[wasm] accepting upstream special response
+[wasm] accepting upstream response
 [emerg]
 
 
@@ -964,14 +964,14 @@ ok
 --- config
     location /t {
         proxy_wasm hostcalls 'test=/t/set_upstreams on=upstream_select upstreams=127.0.0.1:8891,127.0.0.1:8892';
-        proxy_wasm hostcalls 'test=/t/accept_response on=upstream_special_response status=404';
+        proxy_wasm hostcalls 'test=/t/accept_response on=next_upstream status=404';
         proxy_pass http://test_upstream/;
     }
 --- error_code: 404
 --- error_log
 [wasm] set upstream peer "127.0.0.1:8891"
-[hostcalls] on_upstream_special_response, status: 404
-[wasm] accepting upstream special response with status: 404
+[hostcalls] on_next_upstream, status: 404
+[wasm] accepting upstream response with status: 404
 [hostcalls] on_upstream_info, last_state: Ok
 --- no_error_log
 [emerg]
@@ -999,7 +999,7 @@ ok
     }
 --- error_code: 500
 --- error_log
-host trap (bad usage): can only accept special response during "on_upstream_special_response"
+host trap (bad usage): can only accept response during "on_next_upstream"
 --- no_error_log
 [emerg]
 
@@ -1029,7 +1029,7 @@ host trap (bad usage): can only accept special response during "on_upstream_spec
 --- response_body
 ok
 --- error_log
-host trap (bad usage): can only accept special response during "on_upstream_special_response"
+host trap (bad usage): can only accept response during "on_next_upstream"
 --- no_error_log
 [emerg]
 
@@ -1056,7 +1056,7 @@ host trap (bad usage): can only accept special response during "on_upstream_spec
     }
 --- error_code: 500
 --- error_log
-host trap (bad usage): can only accept special response during "on_upstream_special_response"
+host trap (bad usage): can only accept response during "on_next_upstream"
 --- no_error_log
 [emerg]
 
@@ -1092,7 +1092,7 @@ host trap (bad usage): can only accept special response during "on_upstream_spec
 
 
 
-=== TEST 35: trap in on_upstream_special_response
+=== TEST 35: trap in on_next_upstream
 --- load_nginx_modules: ngx_http_echo_module
 --- wasm_modules: hostcalls
 --- http_config
@@ -1117,7 +1117,7 @@ host trap (bad usage): can only accept special response during "on_upstream_spec
 --- config
     location /t {
         proxy_wasm hostcalls 'test=/t/set_upstreams on=upstream_select upstreams=127.0.0.1:8891,127.0.0.1:8892';
-        proxy_wasm hostcalls 'test=/t/trap on=upstream_special_response';
+        proxy_wasm hostcalls 'test=/t/trap on=next_upstream';
         proxy_pass http://test_upstream/;
     }
 --- error_code: 500
@@ -1294,8 +1294,8 @@ custom-value
 --- response_body
 ok
 --- error_log
-on_upstream_special_response, status: 500
-on_upstream_special_response, status: 404
+on_next_upstream, status: 500
+on_next_upstream, status: 404
 --- no_error_log
 [emerg]
 
@@ -1378,7 +1378,7 @@ qr/(free|get) keepalive peer: (saving|using) connection/
 
 
 
-=== TEST 44: wasm_upstream_special_response with keepalive - no connection reused
+=== TEST 44: wasm_next_upstream with keepalive - no connection reused
 --- load_nginx_modules: ngx_http_echo_module
 --- wasm_modules: hostcalls
 --- http_config
@@ -1405,7 +1405,7 @@ qr/(free|get) keepalive peer: (saving|using) connection/
     }
 --- error_code: 404
 --- error_log
-on_upstream_special_response, status: 404
+on_next_upstream, status: 404
 --- no_error_log
 [emerg]
 
