@@ -1992,11 +1992,11 @@ ngx_proxy_wasm_hfuncs_proxy_accept_upstream_response(ngx_wavm_instance_t *instan
     r = rctx->r;
     pwctx = pwexec->parent;
 
-    if (pwctx->step != NGX_PROXY_WASM_STEP_UPSTREAM_SPECIAL_RESPONSE) {
+    if (pwctx->step != NGX_PROXY_WASM_STEP_NEXT_UPSTREAM) {
         return ngx_proxy_wasm_result_trap(pwexec,
-                                          "can only accept special response "
+                                          "can only accept response "
                                           "during "
-                                          "\"on_upstream_special_response\"",
+                                          "\"on_next_upstream\"",
                                           rets, NGX_WAVM_BAD_USAGE);
     }
 
@@ -2010,7 +2010,7 @@ ngx_proxy_wasm_hfuncs_proxy_accept_upstream_response(ngx_wavm_instance_t *instan
     up->accept_resp = 1;
 
     ngx_wavm_log_error(NGX_LOG_INFO, instance->log, NULL,
-                       "accepting upstream special response with status: %ui",
+                       "accepting upstream response with status: %ui",
                        up->last_status);
 
     return ngx_proxy_wasm_result_ok(rets);
@@ -2039,7 +2039,7 @@ ngx_proxy_wasm_hfuncs_proxy_get_upstream_timeouts(ngx_wavm_instance_t *instance,
 
     switch (pwctx->step) {
     case NGX_PROXY_WASM_STEP_UPSTREAM_SELECT:
-    case NGX_PROXY_WASM_STEP_UPSTREAM_SPECIAL_RESPONSE:
+    case NGX_PROXY_WASM_STEP_NEXT_UPSTREAM:
     case NGX_PROXY_WASM_STEP_UPSTREAM_INFO:
         break;
 

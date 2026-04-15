@@ -138,7 +138,7 @@ ngx_proxy_wasm_maps_get_map(ngx_wavm_instance_t *instance,
     case NGX_PROXY_WASM_MAP_HTTP_UPSTREAM_RESPONSE_HEADERS:
         pwexec = ngx_proxy_wasm_instance2pwexec(instance);
         pwctx = pwexec->parent;
-        if (pwctx->step != NGX_PROXY_WASM_STEP_UPSTREAM_SPECIAL_RESPONSE) {
+        if (pwctx->step != NGX_PROXY_WASM_STEP_NEXT_UPSTREAM) {
             return NULL;
         }
 

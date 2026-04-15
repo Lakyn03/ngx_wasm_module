@@ -12,6 +12,7 @@
     - [Nginx Properties]
     - [HTTP Dispatches]
     - [Foreign Functions]
+    - [Upstream selection]
 - [Supported Specifications]
     - [Tested SDKs](#tested-sdks)
     - [Supported Entrypoints](#supported-entrypoints)
@@ -613,7 +614,7 @@ enum WasmxForeignFunctions {
 
 [Back to TOC](#table-of-contents)
 
-### Upstream selection
+### Upstream Selection
 
 Proxy-Wasm filters can handle the decision-making behind choosing the 
 upstream server for each request. The process includes multiple callbacks
@@ -745,7 +746,7 @@ without connecting to the next upstream.
 If `proxy_set_upstream` is not called, Nginx will fall back to the original upstream selection 
 method (default is round robin).
 
-### `on_upstream_special_response` 
+### `on_next_upstream` 
 is called when Nginx has `proxy_next_upstream` defined with
 some HTTP status codes and an upstream response fitting that criteria arrives. 
 
@@ -756,7 +757,7 @@ Based on that `proxy_accept_upstream_response` can be called to accept this resp
 and proxy it downstream instead of attempting to contact another upstream.
 
 ```rust
-fn on_http_upstream_special_response(&mut self, status: u32) {
+fn on_http_next_upstream(&mut self, status: u32) {
     if let Some(header) = self.get_http_upstream_response_header("x-custom") { 
         if status == 404 && header == "value" {
             self.accept_upstream_response()
@@ -892,7 +893,7 @@ SDK ABI `0.2.1`) and their present status in ngx_wasm_module:
 `on_done`                          | :heavy_check_mark:  | HTTP context done handler.
 **Upstream contexts**              |                     |
 `on_upstream_select`               | :heavy_check_mark:  | Upstream selection handler.
-`on_upstream_special_response`     | :heavy_check_mark:  | Special upstream response handler.
+`on_next_upstream`     | :heavy_check_mark:  | Next upstream handler.
 `on_upstream_info`                 | :heavy_check_mark:  | Upstream attempt info handler.
 *Shared memory queues*             |                     |
 `on_queue_ready`                   | :x:                 | *NYI*
@@ -1209,6 +1210,7 @@ Proxy-Wasm SDK.
 [Nginx Properties]: #nginx-properties
 [HTTP Dispatches]: #http-dispatches
 [Foreign Functions]: #foreign-functions
+[Upstream Selection]: #upstream-selection
 [Supported Specifications]: #supported-specifications
 [Supported Properties]: #supported-properties
 [Examples]: #examples

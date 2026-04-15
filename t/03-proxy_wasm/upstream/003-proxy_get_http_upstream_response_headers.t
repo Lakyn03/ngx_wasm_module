@@ -144,7 +144,7 @@ qr/panicked at/
 
 
 
-=== TEST 8: proxy_wasm - get upstream response headers in upstream_special_response
+=== TEST 8: proxy_wasm - get upstream response headers in next_upstream
 --- wasm_modules: hostcalls
 --- http_config
     server {
@@ -162,7 +162,7 @@ qr/panicked at/
 --- config
     location /t {
         proxy_wasm hostcalls 'test=/t/set_upstream on=upstream_select ip=127.0.0.1 port=8891';
-        proxy_wasm hostcalls 'test=/t/log/upstream_response_headers on=upstream_special_response';
+        proxy_wasm hostcalls 'test=/t/log/upstream_response_headers on=next_upstream';
         proxy_pass http://test_upstream/;
     }
 --- error_code: 404
@@ -197,7 +197,7 @@ upstream resp Connection:
 --- config
     location /t {
         proxy_wasm hostcalls 'test=/t/set_upstream on=upstream_select ip=127.0.0.1 port=8891';
-        proxy_wasm hostcalls 'test=/t/log/upstream_response_header on=upstream_special_response name=hello';
+        proxy_wasm hostcalls 'test=/t/log/upstream_response_header on=next_upstream name=hello';
         proxy_pass http://test_upstream/;
     }
 --- error_code: 404
@@ -243,15 +243,15 @@ upstream resp header "hello: world"
 --- config
     location /t {
         proxy_wasm hostcalls 'test=/t/set_upstreams on=upstream_select upstreams=127.0.0.1:8891,127.0.0.1:8892,127.0.0.1:8893';
-        proxy_wasm hostcalls 'test=/t/log/upstream_response_header on=upstream_special_response name=hello';
+        proxy_wasm hostcalls 'test=/t/log/upstream_response_header on=next_upstream name=hello';
         proxy_pass http://test_upstream/;
     }
 --- response_body
 ok
 --- error_log
-on_upstream_special_response, status: 404
+on_next_upstream, status: 404
 upstream resp header "hello: world1"
-on_upstream_special_response, status: 500
+on_next_upstream, status: 500
 upstream resp header "hello: world2"
 --- no_error_log
 [emerg]
@@ -277,7 +277,7 @@ upstream resp header "hello: world2"
 --- config
     location /t {
         proxy_wasm hostcalls 'test=/t/set_upstream on=upstream_select ip=127.0.0.1 port=8891';
-        proxy_wasm hostcalls 'test=/t/log/upstream_response_header on=upstream_special_response name=nonexisting';
+        proxy_wasm hostcalls 'test=/t/log/upstream_response_header on=next_upstream name=nonexisting';
         proxy_pass http://test_upstream/;
     }
 --- error_code: 404

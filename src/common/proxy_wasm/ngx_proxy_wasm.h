@@ -81,7 +81,7 @@ typedef enum {
     NGX_PROXY_WASM_STEP_DISPATCH_RESPONSE,
     NGX_PROXY_WASM_STEP_FOREIGN_CALLBACK,
     NGX_PROXY_WASM_STEP_UPSTREAM_SELECT,
-    NGX_PROXY_WASM_STEP_UPSTREAM_SPECIAL_RESPONSE,
+    NGX_PROXY_WASM_STEP_NEXT_UPSTREAM,
     NGX_PROXY_WASM_STEP_UPSTREAM_INFO,
 } ngx_proxy_wasm_step_e;
 
@@ -392,7 +392,7 @@ struct ngx_proxy_wasm_filter_s {
     ngx_wavm_funcref_t            *proxy_on_http_response_trailers;
     ngx_wavm_funcref_t            *proxy_on_http_response_metadata;
     ngx_wavm_funcref_t            *proxy_on_http_upstream_select;
-    ngx_wavm_funcref_t            *proxy_on_http_upstream_special_response;
+    ngx_wavm_funcref_t            *proxy_on_http_next_upstream;
     ngx_wavm_funcref_t            *proxy_on_http_upstream_info;
 
     /* shared queue */

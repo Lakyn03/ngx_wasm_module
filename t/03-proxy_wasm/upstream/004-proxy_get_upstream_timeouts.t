@@ -218,7 +218,7 @@ host trap
 
 
 
-=== TEST 8: get_upstream_timeouts allowed in on_upstream_special_response
+=== TEST 8: get_upstream_timeouts allowed in on_next_upstream
 --- load_nginx_modules: ngx_http_echo_module
 --- wasm_modules: hostcalls
 --- http_config
@@ -239,7 +239,7 @@ host trap
 --- config
     location /t {
         proxy_wasm hostcalls 'test=/t/set_upstream on=upstream_select ip=127.0.0.1 port=8891';
-        proxy_wasm hostcalls 'test=/t/get_upstream_timeouts on=upstream_special_response';
+        proxy_wasm hostcalls 'test=/t/get_upstream_timeouts on=next_upstream';
         proxy_pass http://test_upstream/;
     }
 --- error_code: 404
