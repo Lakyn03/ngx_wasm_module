@@ -24,6 +24,7 @@ typedef struct {
     ngx_uint_t                          tls;
     ngx_str_t                           sni;
     ngx_str_t                          *name;
+    ngx_str_t                           host;
 
     ngx_uint_t                          last_peer_state;
     ngx_uint_t                          last_status;
@@ -59,5 +60,8 @@ ngx_int_t ngx_http_wasm_get_last_upstream_state(ngx_proxy_wasm_ctx_t *pwctx,
 ngx_int_t ngx_http_wasm_set_upstream_timeouts(ngx_http_request_t *r, ngx_msec_t connect,
     ngx_msec_t send, ngx_msec_t read);
 ngx_int_t ngx_http_wasm_get_upstreams(ngx_proxy_wasm_exec_t *pwexec, u_char **start, size_t *len);
+
+ngx_int_t ngx_http_wasm_upstream_host_variable(ngx_http_request_t *r,
+    ngx_http_variable_value_t *v, uintptr_t data);
 
 #endif //_NGX_HTTP_WASM_UPSTREAM_H_INCLUDED_

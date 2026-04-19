@@ -707,6 +707,7 @@ need it for some load balancing algorithms.
 ```rust
 pub struct UpstreamServer {
     pub address: String, // ipv4/ipv6 address in text format
+    pub port: u32,  // configured port 
     pub weight: u32,  // weight to specify stronger servers
     pub max_fails: u32, // number of failed attempts before temporarily disabling the server
     pub fail_timeout: u32,  // time in seconds to disable the server after max_fails fails
@@ -723,7 +724,11 @@ to choose the desired upstream
 
 ```rust
 fn on_http_upstream_select(&mut self) {
-  self.set_upstream("127.0.0.1", 8090);
+  // plain HTTP upstream
+  self.set_upstream("127.0.0.1", 8090, false, None);
+
+  // HTTPS upstream with SNI
+  // self.set_upstream("1.1.1.1", 443, true, Some("one.one.one.one"));
 }
 ```
 
@@ -745,6 +750,22 @@ without connecting to the next upstream.
 
 If `proxy_set_upstream` is not called, Nginx will fall back to the original upstream selection 
 method (default is round robin).
+
+#### Upstream `Host` header (`$wasm_upstream_host`)
+
+The `Host` header in outgoing proxy requests is not plugin-controllable
+without an explicit `proxy_set_header` directive, because Nginx's proxy
+module fills `Host` from its built-in `$proxy_host`.
+
+The framework registers the `$wasm_upstream_host` Nginx variable, intended
+for use with a location-level directive such as:
+
+```nginx
+proxy_set_header Host $wasm_upstream_host;
+```
+
+`$wasm_upstream_host` evaluates to value set to the `"Host"` header during `on_upstream_select`,
+otherwise falls back to the original `$proxy_host`
 
 ### `on_next_upstream` 
 is called when Nginx has `proxy_next_upstream` defined with

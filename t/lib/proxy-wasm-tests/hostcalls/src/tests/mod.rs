@@ -241,6 +241,9 @@ pub(crate) fn test_set_upstream(ctx: &TestHttp) {
     let port = ctx.config.get("port").unwrap().parse::<u32>().unwrap();
     let tls = ctx.config.get("tls").map(|v| v == "1").unwrap_or(false);
     let sni = ctx.config.get("sni").map(|s| s.as_str());
+    if let Some(host) = ctx.config.get("host") {
+        ctx.set_http_request_header("Host", Some(host));
+    }
     ctx.set_upstream(addr, port, tls, sni);
 }
 

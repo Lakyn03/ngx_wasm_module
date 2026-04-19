@@ -327,7 +327,7 @@ version = "0.1.0"
 dependencies = [
  "enum-utils",
  "log",
- "proxy-wasm 0.2.5-dev",
+ "proxy-wasm 0.2.5-dev (git+https://github.com/Lakyn03/proxy-wasm-rust-sdk.git?branch=main)",
 ]
 
 [[package]]
@@ -377,6 +377,14 @@ name = "proxy-wasm"
 version = "0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f8d35d9e2bc5104e2e954b149aa1d5f9fa3bb27f73b45b2706020fed101db685"
+dependencies = [
+ "hashbrown 0.16.1",
+ "log",
+]
+
+[[package]]
+name = "proxy-wasm"
+version = "0.2.5-dev"
 dependencies = [
  "hashbrown 0.16.1",
  "log",

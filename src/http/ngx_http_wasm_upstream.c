@@ -400,6 +400,44 @@ ngx_proxy_wasm_upstream_resume(ngx_http_wasm_req_ctx_t *rctx, ngx_proxy_wasm_ste
 
 
 ngx_int_t
+ngx_http_wasm_upstream_host_variable(ngx_http_request_t *r,
+    ngx_http_variable_value_t *v, uintptr_t data)
+{
+    ngx_http_wasm_req_ctx_t             *rctx;
+    ngx_http_variable_value_t           *pv;
+    ngx_http_wasm_upstream_peer_data_t  *up;
+    ngx_int_t                            proxy_host_idx;
+
+    if (ngx_http_wasm_rctx(r, &rctx) == NGX_OK
+        && rctx->upstream_peer)
+    {
+        up = rctx->upstream_peer;
+        if (up->host.len) {
+            v->len = up->host.len;
+            v->data = up->host.data;
+            v->valid = 1;
+            v->no_cacheable = 1;
+            v->not_found = 0;
+            return NGX_OK;
+        }
+    }
+
+    proxy_host_idx = *(ngx_int_t *) data;
+    if (proxy_host_idx != NGX_ERROR) {
+        pv = ngx_http_get_indexed_variable(r, proxy_host_idx);
+        if (pv && pv->valid && !pv->not_found) {
+            *v = *pv;
+            v->no_cacheable = 1;
+            return NGX_OK;
+        }
+    }
+
+    v->not_found = 1;
+    return NGX_OK;
+}
+
+
+ngx_int_t
 ngx_http_wasm_set_upstream(ngx_http_wasm_upstream_peer_data_t  *up,
     ngx_str_t *addr, ngx_int_t port, ngx_uint_t tls, ngx_str_t *sni, ngx_pool_t *pool)
 {
