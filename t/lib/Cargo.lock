@@ -74,16 +74,15 @@ dependencies = [
 
 [[package]]
 name = "blake3"
-version = "1.8.4"
+version = "1.5.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4d2d5991425dfd0785aed03aedcf0b321d61975c9b5b3689c774a2610ae0b51e"
+checksum = "b8ee0c1824c4dea5b5f81736aff91bae041d2c07ee1192bec91054e10e3e601e"
 dependencies = [
  "arrayref",
  "arrayvec",
  "cc",
  "cfg-if",
  "constant_time_eq",
- "cpufeatures",
 ]
 
 [[package]]
@@ -110,9 +109,9 @@ checksum = "9330f8b2ff13f34540b44e946ef35111825727b38d33286ef986142615121801"
 
 [[package]]
 name = "constant_time_eq"
-version = "0.4.2"
+version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3d52eff69cd5e647efe296129160853a42795992097e8af39800e1060caeea9b"
+checksum = "7c74b8349d32d297c9134b8c88677813a227df8f779daa29bfc29c183fe3dca6"
 
 [[package]]
 name = "context-checks"
@@ -120,15 +119,6 @@ version = "0.1.0"
 dependencies = [
  "log",
  "proxy-wasm 0.2.3-dev",
-]
-
-[[package]]
-name = "cpufeatures"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8b2a41393f66f16b0823bb79094d54ac5fbd34ab292ddafb9a0456ac9f87d201"
-dependencies = [
- "libc",
 ]
 
 [[package]]
@@ -395,7 +385,7 @@ dependencies = [
 [[package]]
 name = "proxy-wasm"
 version = "0.2.5-dev"
-source = "git+https://github.com/Lakyn03/proxy-wasm-rust-sdk.git?branch=main#2b27e7b34b5af37786c19a4f5535911a201b128e"
+source = "git+https://github.com/Lakyn03/proxy-wasm-rust-sdk.git?branch=main#1f4a7a72c196b54fe1742ee756074aca77f72992"
 dependencies = [
  "hashbrown 0.16.1",
  "log",

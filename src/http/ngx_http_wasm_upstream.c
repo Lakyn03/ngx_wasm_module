@@ -475,12 +475,13 @@ ngx_http_wasm_set_upstream_timeouts(ngx_http_request_t *r, ngx_msec_t connect,
 ngx_int_t
 ngx_http_wasm_get_upstreams(ngx_proxy_wasm_exec_t *pwexec, u_char **ret_start, size_t *ret_len)
 {
-    size_t                          i, j, len, total_addrs;
+    size_t                          i, j, len, total_addrs, ip_len;
     u_char                         *p;
-    ngx_str_t                      *name, *addr;
+    ngx_str_t                      *name;
     ngx_http_upstream_server_t     *servers;
     ngx_http_upstream_srv_conf_t   *uscf, **uscfp;
     ngx_http_upstream_main_conf_t  *umcf;
+    u_char                          ip_buf[NGX_SOCKADDR_STRLEN];
 
     umcf = ngx_http_cycle_get_module_main_conf(ngx_cycle, ngx_http_upstream_module);
     if (umcf == NULL) {
@@ -520,8 +521,13 @@ ngx_http_wasm_get_upstreams(ngx_proxy_wasm_exec_t *pwexec, u_char **ret_start, s
         for (j = 0; j < servers[i].naddrs; j++) {
             total_addrs++;
 
+            ip_len = ngx_sock_ntop(servers[i].addrs[j].sockaddr,
+                                   servers[i].addrs[j].socklen,
+                                   ip_buf, NGX_SOCKADDR_STRLEN, 0);
+
             len += NGX_PROXY_WASM_PTR_SIZE;       /* addr length */
-            len += servers[i].addrs[j].name.len;  /* addr */
+            len += ip_len;                        /* addr */
+            len += NGX_PROXY_WASM_PTR_SIZE;       /* port */
             len += 4 * NGX_PROXY_WASM_PTR_SIZE;   /* weight, max_fails, fail_timeout, backup */
         }
     }
@@ -543,13 +549,18 @@ ngx_http_wasm_get_upstreams(ngx_proxy_wasm_exec_t *pwexec, u_char **ret_start, s
         }
 
         for (j = 0; j < servers[i].naddrs; j++) {
-            addr = &servers[i].addrs[j].name;
+            ip_len = ngx_sock_ntop(servers[i].addrs[j].sockaddr,
+                                   servers[i].addrs[j].socklen,
+                                   ip_buf, NGX_SOCKADDR_STRLEN, 0);
 
-            *(uint32_t *)p = addr->len;
+            *(uint32_t *)p = ip_len;
             p += NGX_PROXY_WASM_PTR_SIZE;
 
-            ngx_memcpy(p, addr->data, addr->len);
-            p += addr->len;
+            ngx_memcpy(p, ip_buf, ip_len);
+            p += ip_len;
+
+            *(uint32_t *)p = ngx_inet_get_port(servers[i].addrs[j].sockaddr);
+            p += NGX_PROXY_WASM_PTR_SIZE;
 
             *(uint32_t *)p = servers[i].weight;
             p += NGX_PROXY_WASM_PTR_SIZE;
