@@ -239,7 +239,9 @@ pub(crate) fn test_set_headers_escaping(ctx: &TestHttp) {
 pub(crate) fn test_set_upstream(ctx: &TestHttp) {
     let addr = ctx.config.get("ip").unwrap();
     let port = ctx.config.get("port").unwrap().parse::<u32>().unwrap();
-    ctx.set_upstream(addr, port);
+    let tls = ctx.config.get("tls").map(|v| v == "1").unwrap_or(false);
+    let sni = ctx.config.get("sni").map(|s| s.as_str());
+    ctx.set_upstream(addr, port, tls, sni);
 }
 
 pub(crate) fn test_set_upstreams(ctx: &mut TestHttp) {
@@ -249,7 +251,7 @@ pub(crate) fn test_set_upstreams(ctx: &mut TestHttp) {
 
     let (addr, port_str) = entry.rsplit_once(':').expect("expected ip:port format");
     let port = port_str.parse::<u32>().unwrap();
-    ctx.set_upstream(addr, port);
+    ctx.set_upstream(addr, port, false, None);
 }
 
 pub(crate) fn test_accept_response(ctx: &TestHttp) {
