@@ -231,7 +231,7 @@ struct ngx_proxy_wasm_exec_s {
 #ifdef NGX_WASM_HTTP
     ngx_http_proxy_wasm_dispatch_t     *dispatch_call;  /* swap pointer for host functions */
 #endif
-
+    ngx_wasm_acl_t                     *acl;  /* only rexec */
     /* flags */
 
     unsigned                           started:1;
@@ -337,6 +337,7 @@ struct ngx_proxy_wasm_filter_s {
     ngx_pool_t                    *pool;
     ngx_str_t                      config;
     ngx_str_t                      upstream;
+    ngx_wasm_acl_ctx_t            *acl_ctx;
     uintptr_t                      data;
     ngx_rbtree_node_t              node;
     ngx_wavm_module_t             *module;
@@ -479,6 +480,8 @@ ngx_int_t ngx_proxy_wasm_pairs_unmarshal(ngx_proxy_wasm_exec_t *pwexec,
 unsigned ngx_proxy_wasm_marshal(ngx_proxy_wasm_exec_t *pwexec,
     ngx_list_t *list, ngx_array_t *extras, ngx_wavm_ptr_t *out,
     uint32_t *out_size, ngx_uint_t *truncated);
+ngx_proxy_wasm_exec_t *ngx_proxy_wasm_lookup_root_ctx(
+    ngx_proxy_wasm_instance_t *ictx, ngx_uint_t id);
 
 
 static ngx_inline void
@@ -511,6 +514,17 @@ ngx_proxy_wasm_instance2pwexec(ngx_wavm_instance_t *instance)
     ngx_proxy_wasm_instance_t  *ictx = instance->data;
 
     return ictx->pwexec;
+}
+
+
+static ngx_inline ngx_proxy_wasm_exec_t *
+ngx_proxy_wasm_rexec(ngx_proxy_wasm_exec_t *pwexec)
+{
+    if (pwexec->root_id == NGX_PROXY_WASM_ROOT_CTX_ID) {
+        return pwexec;
+    }
+
+    return ngx_proxy_wasm_lookup_root_ctx(pwexec->ictx, pwexec->filter->id);
 }
 
 

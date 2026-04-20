@@ -6,6 +6,8 @@
 #include <ngx_wasm.h>
 #include <ngx_wavm.h>
 
+#include "ngx_wasm_acl.h"
+
 
 static char *
 ngx_wasm_core_runtime_block(ngx_conf_t *cf, ngx_uint_t cmd_type)
@@ -66,6 +68,167 @@ ngx_wasm_core_metrics_block(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
     *cf = save;
 
     return rv;
+}
+
+
+char *
+ngx_wasm_acl_block(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+{
+    char                  *rv;
+    ngx_str_t             *value, *name;
+    ngx_conf_t             save = *cf;
+    ngx_wasm_acl_ctx_t    *acl_ctx, **slot;
+    ngx_wasm_core_conf_t  *wcf = conf;
+
+    value = cf->args->elts;
+    name = &value[1];
+
+    if (ngx_wasm_acl_find_ctx(cf->cycle, name) != NULL) {
+        ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
+                           "[wasm] duplicate acl \"%V\"", name);
+        return NGX_CONF_ERROR;
+    }
+
+    acl_ctx = ngx_pcalloc(cf->pool, sizeof(ngx_wasm_acl_ctx_t));
+    if (acl_ctx == NULL) {
+        return NGX_CONF_ERROR;
+    }
+
+    acl_ctx->name = *name;
+
+    if (ngx_array_init(&acl_ctx->allow_addrs, cf->pool, 4, sizeof(ngx_cidr_t))
+        != NGX_OK)
+    {
+        return NGX_CONF_ERROR;
+    }
+
+    if (ngx_array_init(&acl_ctx->deny_addrs, cf->pool, 4, sizeof(ngx_cidr_t))
+        != NGX_OK)
+    {
+        return NGX_CONF_ERROR;
+    }
+
+    if (ngx_array_init(&acl_ctx->allow_hosts, cf->pool, 4,
+                       sizeof(ngx_wasm_acl_host_t))
+        != NGX_OK)
+    {
+        return NGX_CONF_ERROR;
+    }
+
+    if (ngx_array_init(&acl_ctx->deny_hosts, cf->pool, 4,
+                       sizeof(ngx_wasm_acl_host_t))
+        != NGX_OK)
+    {
+        return NGX_CONF_ERROR;
+    }
+
+    slot = ngx_array_push(&wcf->acls);
+    if (slot == NULL) {
+        return NGX_CONF_ERROR;
+    }
+
+    *slot = acl_ctx;
+
+    cf->cmd_type = NGX_WASM_ACL_CONF;
+    cf->module_type = NGX_WASM_MODULE;
+    cf->ctx = acl_ctx;
+
+    rv = ngx_conf_parse(cf, NULL);
+
+    *cf = save;
+
+    return rv;
+}
+
+
+char *
+ngx_wasm_acl_addr_rule(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+{
+    ngx_str_t           *args;
+    ngx_cidr_t           cidr, *slot;
+    ngx_array_t         *addrs;
+    ngx_wasm_acl_ctx_t  *acl_ctx;
+
+    acl_ctx = cf->ctx;
+    args = cf->args->elts;
+
+    addrs = (cmd->name.data[0] == 'a') ? &acl_ctx->allow_addrs
+                                       : &acl_ctx->deny_addrs;
+
+    if (ngx_ptocidr(&args[1], &cidr) == NGX_ERROR) {
+        ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
+                         "[wasm] invalid CIDR \"%V\"", &args[1]);
+        return NGX_CONF_ERROR;
+    }
+
+    slot = ngx_array_push(addrs);
+    if (slot == NULL) {
+        return NGX_CONF_ERROR;
+    }
+
+    *slot = cidr;
+
+    return NGX_CONF_OK;
+}
+
+
+char *
+ngx_wasm_acl_host_rule(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+{
+    ngx_str_t             *args, pattern;
+    ngx_uint_t             wildcard;
+    ngx_array_t           *hosts;
+    ngx_wasm_acl_ctx_t    *acl_ctx;
+    ngx_wasm_acl_host_t   *slot;
+
+    acl_ctx = cf->ctx;
+    args = cf->args->elts;
+    pattern = args[1];
+    wildcard = 0;
+
+    if (pattern.len == 0) {
+        ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
+                           "[wasm] empty hostname in \"%V\" directive",
+                           &cmd->name);
+        return NGX_CONF_ERROR;
+    }
+
+    if (pattern.data[0] == '*') {
+        if (pattern.len < 3 || pattern.data[1] != '.') {
+            ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
+                               "[wasm] invalid wildcard hostname \"%V\": "
+                               "expected \"*.suffix\"", &pattern);
+            return NGX_CONF_ERROR;
+        }
+
+        if (ngx_strlchr(pattern.data + 1, pattern.data + pattern.len, '*')
+            != NULL)
+        {
+            ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
+                               "[wasm] hostname \"%V\" has multiple "
+                               "wildcards", &pattern);
+            return NGX_CONF_ERROR;
+        }
+
+        wildcard = 1;
+        pattern.data += 1;
+        pattern.len -= 1;
+    }
+
+    ngx_strlow(pattern.data, pattern.data, pattern.len);
+
+    hosts = (cmd->name.data[0] == 'a') ? &acl_ctx->allow_hosts
+                                       : &acl_ctx->deny_hosts;
+
+    slot = ngx_array_push(hosts);
+    if (slot == NULL) {
+        return NGX_CONF_ERROR;
+    }
+
+    slot->name = pattern;
+    slot->wildcard = wildcard;
+
+    return NGX_CONF_OK;
 }
 
 
