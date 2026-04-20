@@ -13,6 +13,7 @@
     - [HTTP Dispatches]
     - [Foreign Functions]
     - [Upstream selection]
+    - [Access Control (ACL)]
 - [Supported Specifications]
     - [Tested SDKs](#tested-sdks)
     - [Supported Entrypoints](#supported-entrypoints)
@@ -831,6 +832,67 @@ upstream backends {
 
 [Back to TOC](#table-of-contents)
 
+### Access Control (ACL)
+
+By default a Proxy-Wasm filter can ask the host to reach any IP address or
+hostname through `proxy_set_upstream`, `proxy_dispatch_http_call`, and the
+`resolve` foreign function. 
+
+The `acl` block inside `wasm{}` allows creating a named allowlist
+of IP ranges and hostnames. Filters opt in to a named ACL via the
+`proxy_wasm ... acl=name` parameter; a filter without `acl=` stays
+unrestricted.
+
+```nginx
+wasm {
+    module my_plugin /path/to/plugin.wasm;
+
+    acl internal_only {
+        allow       10.0.0.0/8;
+        allow       192.168.0.0/16;
+        allow_host  api.internal.corp;
+        allow_host  *.internal.corp;
+
+        deny        10.0.0.13;          
+        deny_host   evil.internal.corp;
+    }
+
+    acl public_api {
+        allow_host  *.api.example.net;
+    }
+}
+
+# server config
+location /a {
+    proxy_wasm my_plugin acl=internal_only;
+}
+location /b {
+    proxy_wasm my_plugin acl=public_api;
+}
+```
+
+**Rules**
+
+| Directive    | Argument            | Meaning                                                                                                       |
+|--------------|---------------------|---------------------------------------------------------------------------------------------------------------|
+| `allow`      | IP or CIDR          | Permits destinations whose address falls in the range. Accepts IPv4 and IPv6.                                 |
+| `deny`       | IP or CIDR          | Blocks destinations in the range, even when the address came from an allowed hostname. Evaluated before `allow`. |
+| `allow_host` | hostname or pattern | Permits `resolve(name)` and `dispatch_http_call(name)`. Exact match, or `*.suffix` for any subdomain of `suffix`. |
+| `deny_host`  | hostname or pattern | Blocks hostnames. Evaluated before `allow_host`. Same pattern syntax.                                         |
+
+`deny` / `deny_host` always take precedence over `allow` / `allow_host`. The wildcard form `*.example.com`
+matches any subdomain (`api.example.com`, `a.b.example.com`) but not the bare
+apex (`example.com`). Only a single leading-label wildcard is supported; bare
+`*` and patterns with multiple `*` are rejected at config load.
+
+When an `acl` ruleset is defined for a plugin, the `proxy_set_upstream`, `proxy_dispatch_http_call`, and 
+`resolve` hostcalls may only use the allowed IPs and hostnames to send requests.
+
+If an allowed hostname is resolved to an IP address, that address is added to the IP allowlist for that particular 
+to allow using it for upstream selection.
+
+[Back to TOC](#table-of-contents)
+
 ## Supported Specifications
 
 This section describes the current state of support for the Proxy-Wasm
@@ -1232,6 +1294,7 @@ Proxy-Wasm SDK.
 [HTTP Dispatches]: #http-dispatches
 [Foreign Functions]: #foreign-functions
 [Upstream Selection]: #upstream-selection
+[Access Control (ACL)]: #access-control-acl
 [Supported Specifications]: #supported-specifications
 [Supported Properties]: #supported-properties
 [Examples]: #examples
