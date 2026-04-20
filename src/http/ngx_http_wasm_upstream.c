@@ -5,6 +5,8 @@
 
 #include <ngx_http_wasm_upstream.h>
 
+#include "ngx_wasm_acl.h"
+
 static ngx_str_t   https = ngx_string("https://");
 static ngx_str_t   http = ngx_string("http://");
 
@@ -439,11 +441,15 @@ ngx_http_wasm_upstream_host_variable(ngx_http_request_t *r,
 
 ngx_int_t
 ngx_http_wasm_set_upstream(ngx_http_wasm_upstream_peer_data_t  *up,
-    ngx_str_t *addr, ngx_int_t port, ngx_uint_t tls, ngx_str_t *sni, ngx_pool_t *pool)
+    ngx_str_t *addr, ngx_int_t port, ngx_uint_t tls, ngx_str_t *sni,
+    ngx_pool_t *pool, ngx_proxy_wasm_exec_t *pwexec)
 {
-    size_t     len;
-    u_char    *p;
-    ngx_url_t  url;
+    size_t                  len;
+    u_char                 *p;
+    ngx_url_t               url;
+    ngx_proxy_wasm_exec_t  *rexec;
+
+    rexec = ngx_proxy_wasm_rexec(pwexec);
 
     if (up->sockaddr && up->socklen) {
         ngx_wasm_log_error(NGX_LOG_DEBUG, up->request->connection->log, 0,
@@ -487,8 +493,16 @@ ngx_http_wasm_set_upstream(ngx_http_wasm_upstream_peer_data_t  *up,
         || url.addrs == NULL
         || url.addrs[0].sockaddr == NULL)
     {
-        ngx_wasm_log_error(NGX_LOG_DEBUG, up->request->connection->log, 0,
+        ngx_wasm_log_error(NGX_LOG_WARN, up->request->connection->log, 0,
                        "invalid upstream address \"%V\"", addr);
+        return NGX_DECLINED;
+    }
+
+    if (rexec->acl != NULL
+        && ngx_wasm_acl_check_addr(rexec->acl, url.addrs[0].sockaddr) != NGX_OK)
+    {
+        ngx_wasm_log_error(NGX_LOG_WARN, up->request->connection->log, 0,
+                       "forbidden upstream address \"%V\"", addr);
         return NGX_DECLINED;
     }
 

@@ -16,6 +16,7 @@
 #include <ngx_http_proxy_wasm.h>
 #include <ngx_http_wasm_upstream.h>
 #endif
+#include <ngx_wasm_acl.h>
 
 
 #ifdef NGX_WASM_HTTP
@@ -1193,11 +1194,12 @@ ngx_proxy_wasm_hfuncs_dispatch_http_call(ngx_wavm_instance_t *instance,
     ngx_str_t                         host, body;
     ngx_proxy_wasm_marshalled_map_t   headers, trailers;
     ngx_proxy_wasm_ctx_t             *pwctx;
-    ngx_proxy_wasm_exec_t            *pwexec;
+    ngx_proxy_wasm_exec_t            *pwexec, *rexec;
     ngx_http_wasm_req_ctx_t          *rctx;
     ngx_http_proxy_wasm_dispatch_t   *call = NULL;
 
     pwexec = ngx_proxy_wasm_instance2pwexec(instance);
+    rexec = ngx_proxy_wasm_rexec(pwexec);
     rctx = ngx_http_proxy_wasm_get_rctx(instance);
     pwctx = pwexec->parent;
 
@@ -1224,6 +1226,15 @@ ngx_proxy_wasm_hfuncs_dispatch_http_call(ngx_wavm_instance_t *instance,
 
     host.len = args[1].of.i32;
     host.data = NGX_WAVM_HOST_LIFT_SLICE(instance, args[0].of.i32, host.len);
+
+    if (rexec != NULL && rexec->acl != NULL
+        && ngx_wasm_acl_check_host(rexec->acl, &host) != NGX_OK)
+    {
+        ngx_wavm_instance_trap_printf(ngx_proxy_wasm_pwexec2instance(pwexec),
+                                "dispatch forbidden: \"%V\"", &host);
+        rets[0] = (wasm_val_t) WASM_I32_VAL(NGX_PROXY_WASM_RESULT_OK);
+        return NGX_WAVM_BAD_USAGE;
+    }
 
     headers.len = args[3].of.i32;
     headers.data = NGX_WAVM_HOST_LIFT_SLICE(instance, args[2].of.i32,
@@ -1977,7 +1988,7 @@ ngx_proxy_wasm_hfuncs_proxy_set_upstream(ngx_wavm_instance_t *instance,
     }
 
     rc = ngx_http_wasm_set_upstream(r->upstream->peer.data, &addr_str, port,
-                                    tls, &sni_str, pwexec->pool);
+                                    tls, &sni_str, pwexec->pool, pwexec);
     if (rc == NGX_ERROR) {
         return ngx_proxy_wasm_result_err(rets);
     } else if (rc == NGX_DECLINED) {
