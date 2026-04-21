@@ -6,6 +6,7 @@
 #include <ngx_proxy_wasm.h>
 #include <ngx_proxy_wasm_properties.h>
 #include <ngx_proxy_wasm_foreign_call.h>
+#include <ngx_wasm_acl.h>
 #ifdef NGX_WASM_HTTP
 #include <ngx_http_proxy_wasm.h>
 #endif
@@ -26,8 +27,6 @@ static void ngx_proxy_wasm_on_done(ngx_proxy_wasm_exec_t *pwexec);
 static ngx_int_t ngx_proxy_wasm_on_tick(ngx_proxy_wasm_exec_t *pwexec);
 static ngx_proxy_wasm_filter_t *ngx_proxy_wasm_lookup_filter(
     ngx_proxy_wasm_filters_root_t *pwroot, ngx_uint_t id);
-static ngx_proxy_wasm_exec_t *ngx_proxy_wasm_lookup_root_ctx(
-    ngx_proxy_wasm_instance_t *ictx, ngx_uint_t id);
 static ngx_proxy_wasm_exec_t *ngx_proxy_wasm_lookup_ctx(
     ngx_proxy_wasm_instance_t *ictx, ngx_uint_t id);
 static ngx_int_t ngx_proxy_wasm_filter_init_abi(
@@ -1167,6 +1166,21 @@ ngx_proxy_wasm_create_context(ngx_proxy_wasm_filter_t *filter,
 
             ngx_queue_init(&rexec->dispatch_ops);
 
+            if (filter->acl_ctx != NULL) {
+                rexec->acl = ngx_pcalloc(rexec->pool, sizeof(ngx_wasm_acl_t));
+                if (rexec->acl == NULL) {
+                    ecode = NGX_PROXY_WASM_ERR_START_FAILED;
+                    goto error;
+                }
+
+                if (ngx_wasm_acl_init(rexec->acl, filter->acl_ctx,
+                                      rexec->pool) != NGX_OK)
+                {
+                    ecode = NGX_PROXY_WASM_ERR_START_FAILED;
+                    goto error;
+                }
+            }
+
             log = filter->log;
 
             rexec->log = ngx_pcalloc(rexec->pool, sizeof(ngx_log_t));
@@ -1482,7 +1496,7 @@ ngx_proxy_wasm_lookup_filter(ngx_proxy_wasm_filters_root_t *pwroot,
 }
 
 
-static ngx_proxy_wasm_exec_t *
+ngx_proxy_wasm_exec_t *
 ngx_proxy_wasm_lookup_root_ctx(ngx_proxy_wasm_instance_t *ictx, ngx_uint_t id)
 {
     ngx_rbtree_t           *rbtree;

@@ -16,6 +16,7 @@
 #include <ngx_http_proxy_wasm.h>
 #include <ngx_http_wasm_upstream.h>
 #endif
+#include <ngx_wasm_acl.h>
 
 
 #ifdef NGX_WASM_HTTP
@@ -1193,11 +1194,12 @@ ngx_proxy_wasm_hfuncs_dispatch_http_call(ngx_wavm_instance_t *instance,
     ngx_str_t                         host, body;
     ngx_proxy_wasm_marshalled_map_t   headers, trailers;
     ngx_proxy_wasm_ctx_t             *pwctx;
-    ngx_proxy_wasm_exec_t            *pwexec;
+    ngx_proxy_wasm_exec_t            *pwexec, *rexec;
     ngx_http_wasm_req_ctx_t          *rctx;
     ngx_http_proxy_wasm_dispatch_t   *call = NULL;
 
     pwexec = ngx_proxy_wasm_instance2pwexec(instance);
+    rexec = ngx_proxy_wasm_rexec(pwexec);
     rctx = ngx_http_proxy_wasm_get_rctx(instance);
     pwctx = pwexec->parent;
 
@@ -1224,6 +1226,15 @@ ngx_proxy_wasm_hfuncs_dispatch_http_call(ngx_wavm_instance_t *instance,
 
     host.len = args[1].of.i32;
     host.data = NGX_WAVM_HOST_LIFT_SLICE(instance, args[0].of.i32, host.len);
+
+    if (rexec != NULL && rexec->acl != NULL
+        && ngx_wasm_acl_check_host(rexec->acl, &host) != NGX_OK)
+    {
+        ngx_wavm_instance_trap_printf(ngx_proxy_wasm_pwexec2instance(pwexec),
+                                "dispatch forbidden: \"%V\"", &host);
+        rets[0] = (wasm_val_t) WASM_I32_VAL(NGX_PROXY_WASM_RESULT_OK);
+        return NGX_WAVM_BAD_USAGE;
+    }
 
     headers.len = args[3].of.i32;
     headers.data = NGX_WAVM_HOST_LIFT_SLICE(instance, args[2].of.i32,
@@ -1926,10 +1937,10 @@ static ngx_int_t
 ngx_proxy_wasm_hfuncs_proxy_set_upstream(ngx_wavm_instance_t *instance,
     wasm_val_t args[], wasm_val_t rets[])
 {
-    u_char                   *addr;
-    uint32_t                  addr_size, port;
+    u_char                   *addr, *sni;
+    uint32_t                  addr_size, sni_size, port, tls;
     ngx_int_t                 rc;
-    ngx_str_t                 addr_str;
+    ngx_str_t                 addr_str, sni_str;
     ngx_http_request_t       *r;
     ngx_proxy_wasm_ctx_t     *pwctx;
     ngx_proxy_wasm_exec_t    *pwexec;
@@ -1950,6 +1961,9 @@ ngx_proxy_wasm_hfuncs_proxy_set_upstream(ngx_wavm_instance_t *instance,
     addr_size = args[1].of.i32;
     addr = NGX_WAVM_HOST_LIFT_SLICE(instance, args[0].of.i32, addr_size);
     port = args[2].of.i32;
+    tls = args[3].of.i32;
+    sni_size = args[5].of.i32;
+    sni = NGX_WAVM_HOST_LIFT_SLICE(instance, args[4].of.i32, sni_size);
 
     if (port > 65535) {
         ngx_wavm_log_error(NGX_LOG_INFO, instance->log, NULL,
@@ -1957,16 +1971,24 @@ ngx_proxy_wasm_hfuncs_proxy_set_upstream(ngx_wavm_instance_t *instance,
         return ngx_proxy_wasm_result_badarg(rets);
     }
 
+    if (tls != 0 && tls != 1) {
+        ngx_wavm_log_error(NGX_LOG_INFO, instance->log, NULL,
+                       "proxy_set_upstream: invalid tls flag: %d", tls);
+        return ngx_proxy_wasm_result_badarg(rets);
+    }
+
     addr_str.len = addr_size;
     addr_str.data = addr;
+
+    sni_str.len = sni_size;
+    sni_str.data = sni;
 
     if (!r || !r->upstream || !r->upstream->peer.data) {
         return ngx_proxy_wasm_result_err(rets);
     }
 
-    rc = ngx_http_wasm_set_upstream(r->upstream->peer.data,
-                                    &addr_str, port,
-                                    pwexec->pool);
+    rc = ngx_http_wasm_set_upstream(r->upstream->peer.data, &addr_str, port,
+                                    tls, &sni_str, pwexec->pool, pwexec);
     if (rc == NGX_ERROR) {
         return ngx_proxy_wasm_result_err(rets);
     } else if (rc == NGX_DECLINED) {
@@ -2502,7 +2524,7 @@ static ngx_wavm_host_func_def_t  ngx_proxy_wasm_hfuncs[] = {
 
     { ngx_string("proxy_set_upstream"),
       &ngx_proxy_wasm_hfuncs_proxy_set_upstream,
-      ngx_wavm_arity_i32x3,
+      ngx_wavm_arity_i32x6,
       ngx_wavm_arity_i32 },
     { ngx_string("proxy_accept_upstream_response"),
       &ngx_proxy_wasm_hfuncs_proxy_accept_upstream_response,

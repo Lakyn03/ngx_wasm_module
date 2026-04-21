@@ -287,11 +287,11 @@ The Wasm modules will then be loaded again during worker process initialization.
 proxy_wasm
 ----------
 
-**usage**    | `proxy_wasm <module> [config=] [upstream=];`
+**usage**    | `proxy_wasm <module> [config=] [upstream=] [acl=];`
 ------------:|:----------------------------------------------------------------
 **contexts** | `http{}`, `server{}`, `location{}`
 **default**  |
-**example**  | `proxy_wasm my_filter_module 'config=foo=bar' upstream=backends;`<br>`proxy_wasm my_filter_module 'foo=bar';` 
+**example**  | `proxy_wasm my_filter_module 'config=foo=bar' upstream=backends;`<br>`proxy_wasm my_filter_module 'foo=bar' acl=internal_only;`
 
 Add a Proxy-Wasm filter to the context's execution chain (see [Execution
 Chain]).
@@ -303,6 +303,11 @@ Chain]).
 - `upstream` is an optional parameter specifying the name of the `upstream{}`
   block from which the configured servers should be exposed to the plugin when 
   it asks for the `UPSTREAM_CONFIGURATION` buffer type.
+- `acl` is an optional parameter specifying the name of the `acl{}` block defined
+  inside `wasm{}` (see [Access Control (ACL)]). Outbound destinations reached
+  via `proxy_set_upstream`, `proxy_dispatch_http_call`, and the `resolve` /
+  `resolve_lua` foreign functions are restricted to the addresses and
+  hostnames listed in that ACL. A filter without `acl=` is unrestricted.
 
 If successfully loaded, the filter will begin its root context execution (i.e.
 `on_vm_start`, `on_configure`, `on_tick`), and will be considered part of the
@@ -1074,6 +1079,7 @@ is used as the limit.
 
 [Contexts]: USER.md#contexts
 [Execution Chain]: USER.md#execution-chain
+[Access Control (ACL)]: PROXY_WASM.md#access-control-acl
 [Metrics]: METRICS.md
 [OpenResty]: https://openresty.org/en/
 [resolver]: https://nginx.org/en/docs/http/ngx_http_core_module.html#resolver

@@ -7,6 +7,7 @@
 #include <ngx_wasm_lua_resolver.h>
 #endif
 #include <ngx_proxy_wasm_foreign_call.h>
+#include <ngx_wasm_acl.h>
 
 
 void
@@ -80,6 +81,7 @@ ngx_proxy_wasm_foreign_callback(ngx_proxy_wasm_dispatch_op_t *dop)
 static void
 ngx_proxy_wasm_hfuncs_resolve_handler(ngx_resolver_ctx_t *ctx)
 {
+    struct sockaddr                *sa;
 #if (NGX_HAVE_INET6)
     struct sockaddr_in6            *sin6;
 #endif
@@ -88,6 +90,7 @@ ngx_proxy_wasm_hfuncs_resolve_handler(ngx_resolver_ctx_t *ctx)
     ngx_uint_t                      i;
     ngx_str_t                       args;
     ngx_buf_t                      *b;
+    ngx_proxy_wasm_exec_t          *rexec;
     ngx_wasm_subsys_env_t          *env;
     ngx_proxy_wasm_dispatch_op_t   *dop;
     ngx_proxy_wasm_foreign_call_t  *call;
@@ -110,6 +113,16 @@ ngx_proxy_wasm_hfuncs_resolve_handler(ngx_resolver_ctx_t *ctx)
     }
 
     i = ctx->naddrs == 1 ? 0 : ngx_random() % ctx->naddrs;
+
+    sa = ctx->addrs[i].sockaddr;
+    rexec = ngx_proxy_wasm_rexec(call->pwexec);
+
+    if (rexec != NULL && rexec->acl != NULL
+        && ngx_wasm_acl_add_addr(rexec->acl, sa) != NGX_OK)
+    {
+        p++;  /* 1st byte is address length; 0 if not found */
+        goto not_found;
+    }
 
     switch (ctx->addrs[i].sockaddr->sa_family) {
 #if (NGX_HAVE_INET6)
@@ -171,6 +184,7 @@ error:
 static void
 ngx_proxy_wasm_hfuncs_resolve_lua_handler(ngx_resolver_ctx_t *rslv_ctx)
 {
+    struct sockaddr                *sa;
 #if (NGX_HAVE_INET6)
     struct sockaddr_in6            *sin6;
 #endif
@@ -179,6 +193,7 @@ ngx_proxy_wasm_hfuncs_resolve_lua_handler(ngx_resolver_ctx_t *rslv_ctx)
     u_short                         sa_family = AF_INET;
     ngx_str_t                       args;
     ngx_buf_t                      *b;
+    ngx_proxy_wasm_exec_t          *rexec;
     ngx_wasm_socket_tcp_t          *sock = rslv_ctx->data;
     ngx_wasm_lua_ctx_t             *lctx = sock->lctx;
     ngx_proxy_wasm_dispatch_op_t   *dop = sock->data;
@@ -203,6 +218,16 @@ ngx_proxy_wasm_hfuncs_resolve_lua_handler(ngx_resolver_ctx_t *rslv_ctx)
     }
 
     ngx_wa_assert(rslv_ctx->naddrs == 1);
+
+    sa = rslv_ctx->addr.sockaddr;
+    rexec = ngx_proxy_wasm_rexec(call->pwexec);
+
+    if (rexec != NULL && rexec->acl != NULL
+        && ngx_wasm_acl_add_addr(rexec->acl, sa) != NGX_OK)
+    {
+        p++;  /* 1st byte is address length; 0 if not found */
+        goto not_found;
+    }
 
     switch (sa_family) {
 #if (NGX_HAVE_INET6)
@@ -263,12 +288,13 @@ ngx_proxy_wasm_foreign_call_resolve(ngx_wavm_instance_t *instance,
     ngx_http_request_t             *r;
     ngx_resolver_ctx_t             *rslv_ctx;
     ngx_wasm_core_conf_t           *wcf;
-    ngx_proxy_wasm_exec_t          *pwexec;
+    ngx_proxy_wasm_exec_t          *pwexec, *rexec;
     ngx_http_core_loc_conf_t       *clcf;
     ngx_proxy_wasm_dispatch_op_t   *dop;
     ngx_proxy_wasm_foreign_call_t  *call;
 
     pwexec = ngx_proxy_wasm_instance2pwexec(instance);
+    rexec = ngx_proxy_wasm_rexec(pwexec);
 
     /* check context */
 
@@ -298,6 +324,16 @@ ngx_proxy_wasm_foreign_call_resolve(ngx_wavm_instance_t *instance,
                                           "cannot resolve, missing name",
                                           rets, NGX_WAVM_BAD_USAGE);
     }
+
+    if (rexec != NULL && rexec->acl != NULL
+        && ngx_wasm_acl_check_host(rexec->acl, fargs) != NGX_OK)
+    {
+        ngx_wavm_instance_trap_printf(ngx_proxy_wasm_pwexec2instance(pwexec),
+                                      "resolve forbidden: \"%V\"", fargs);
+        rets[0] = (wasm_val_t) WASM_I32_VAL(NGX_PROXY_WASM_RESULT_OK);
+        return NGX_WAVM_BAD_USAGE;
+    }
+
 
     call = ngx_pcalloc(pwexec->pool, sizeof(ngx_proxy_wasm_foreign_call_t));
     if (call == NULL) {
@@ -416,10 +452,13 @@ ngx_proxy_wasm_foreign_call_resolve_lua(ngx_wavm_instance_t *instance,
     ngx_buf_t                      *b;
     ngx_resolver_ctx_t             *rslv_ctx;
     ngx_wasm_core_conf_t           *wcf;
+    ngx_proxy_wasm_exec_t          *rexec;
     ngx_wasm_socket_tcp_t          *sock;
     ngx_proxy_wasm_dispatch_op_t   *dop;
     ngx_proxy_wasm_foreign_call_t  *call;
     ngx_wavm_ptr_t                  p;
+
+    rexec = ngx_proxy_wasm_rexec(pwexec);
 
     /* check context */
 
@@ -448,6 +487,15 @@ ngx_proxy_wasm_foreign_call_resolve_lua(ngx_wavm_instance_t *instance,
         return ngx_proxy_wasm_result_trap(pwexec,
                                           "cannot resolve, missing name",
                                           rets, NGX_WAVM_BAD_USAGE);
+    }
+
+    if (rexec != NULL && rexec->acl != NULL
+        && ngx_wasm_acl_check_host(rexec->acl, fargs) != NGX_OK)
+    {
+        ngx_wavm_instance_trap_printf(ngx_proxy_wasm_pwexec2instance(pwexec),
+                                      "resolve forbidden: \"%V\"", fargs);
+        rets[0] = (wasm_val_t) WASM_I32_VAL(NGX_PROXY_WASM_RESULT_OK);
+        return NGX_WAVM_BAD_USAGE;
     }
 
     call = ngx_pcalloc(pwexec->pool, sizeof(ngx_proxy_wasm_foreign_call_t));

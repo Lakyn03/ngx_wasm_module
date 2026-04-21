@@ -70,8 +70,8 @@ impl RootContext for TestRoot {
         if let Some(servers) = self.get_upstream_configuration() {
             for s in &servers {
                 info!(
-                    "[hostcalls] upstream: {} weight={} max_fails={} fail_timeout={} backup={}",
-                    s.address, s.weight, s.max_fails, s.fail_timeout, s.backup
+                    "[hostcalls] upstream: {}:{} weight={} max_fails={} fail_timeout={} backup={}",
+                    s.address, s.port, s.weight, s.max_fails, s.fail_timeout, s.backup
                 );
             }
         } else {

@@ -16,7 +16,8 @@
 
 #define NGX_HTTP_WASM_DONE_IN_LOG 0
 
-
+static ngx_int_t ngx_http_wasm_add_variables(ngx_conf_t *cf);
+static ngx_int_t ngx_http_wasm_init_vars(ngx_conf_t *cf);
 static void *ngx_http_wasm_create_main_conf(ngx_conf_t *cf);
 static char *ngx_http_wasm_init_main_conf(ngx_conf_t *cf, void *conf);
 static void *ngx_http_wasm_create_srv_conf(ngx_conf_t *cf);
@@ -249,8 +250,20 @@ static ngx_command_t  ngx_http_wasm_module_cmds[] = {
 };
 
 
+static ngx_int_t  ngx_http_wasm_proxy_host_idx = NGX_ERROR;
+
+static ngx_http_variable_t  ngx_http_wasm_vars[] = {
+    { ngx_string("wasm_upstream_host"), NULL,
+      ngx_http_wasm_upstream_host_variable,
+      (uintptr_t) &ngx_http_wasm_proxy_host_idx,
+      NGX_HTTP_VAR_NOCACHEABLE, 0 },
+
+    ngx_http_null_variable
+};
+
+
 static ngx_http_module_t  ngx_http_wasm_module_ctx = {
-    NULL,                                /* preconfiguration */
+    ngx_http_wasm_add_variables,          /* preconfiguration */
     ngx_http_wasm_postconfig,            /* postconfiguration */
     ngx_http_wasm_create_main_conf,      /* create main configuration */
     ngx_http_wasm_init_main_conf,        /* init main configuration */
@@ -489,6 +502,39 @@ ngx_http_wasm_postconfig(ngx_conf_t *cf)
             *h = phase_handlers[i];
         }
     }
+
+    if (ngx_http_wasm_init_vars(cf) != NGX_OK) {
+        return NGX_ERROR;
+    }
+
+    return NGX_OK;
+}
+
+
+static ngx_int_t
+ngx_http_wasm_add_variables(ngx_conf_t *cf)
+{
+    ngx_http_variable_t  *var, *v;
+
+    for (v = ngx_http_wasm_vars; v->name.len; v++) {
+        var = ngx_http_add_variable(cf, &v->name, v->flags);
+        if (var == NULL) {
+            return NGX_ERROR;
+        }
+        var->get_handler = v->get_handler;
+        var->data = v->data;
+    }
+
+    return NGX_OK;
+}
+
+
+static ngx_int_t
+ngx_http_wasm_init_vars(ngx_conf_t *cf)
+{
+    ngx_str_t  name = ngx_string("proxy_host");
+
+    ngx_http_wasm_proxy_host_idx = ngx_http_get_variable_index(cf, &name);
 
     return NGX_OK;
 }

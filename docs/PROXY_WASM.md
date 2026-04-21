@@ -13,6 +13,7 @@
     - [HTTP Dispatches]
     - [Foreign Functions]
     - [Upstream selection]
+    - [Access Control (ACL)]
 - [Supported Specifications]
     - [Tested SDKs](#tested-sdks)
     - [Supported Entrypoints](#supported-entrypoints)
@@ -707,6 +708,7 @@ need it for some load balancing algorithms.
 ```rust
 pub struct UpstreamServer {
     pub address: String, // ipv4/ipv6 address in text format
+    pub port: u32,  // configured port 
     pub weight: u32,  // weight to specify stronger servers
     pub max_fails: u32, // number of failed attempts before temporarily disabling the server
     pub fail_timeout: u32,  // time in seconds to disable the server after max_fails fails
@@ -723,7 +725,11 @@ to choose the desired upstream
 
 ```rust
 fn on_http_upstream_select(&mut self) {
-  self.set_upstream("127.0.0.1", 8090);
+  // plain HTTP upstream
+  self.set_upstream("127.0.0.1", 8090, false, None);
+
+  // HTTPS upstream with SNI
+  // self.set_upstream("1.1.1.1", 443, true, Some("one.one.one.one"));
 }
 ```
 
@@ -745,6 +751,22 @@ without connecting to the next upstream.
 
 If `proxy_set_upstream` is not called, Nginx will fall back to the original upstream selection 
 method (default is round robin).
+
+#### Upstream `Host` header (`$wasm_upstream_host`)
+
+The `Host` header in outgoing proxy requests is not plugin-controllable
+without an explicit `proxy_set_header` directive, because Nginx's proxy
+module fills `Host` from its built-in `$proxy_host`.
+
+The framework registers the `$wasm_upstream_host` Nginx variable, intended
+for use with a location-level directive such as:
+
+```nginx
+proxy_set_header Host $wasm_upstream_host;
+```
+
+`$wasm_upstream_host` evaluates to value set to the `"Host"` header during `on_upstream_select`,
+otherwise falls back to the original `$proxy_host`
 
 ### `on_next_upstream` 
 is called when Nginx has `proxy_next_upstream` defined with
@@ -807,6 +829,66 @@ upstream backends {
     keepalive 32;
 }
 ```
+
+[Back to TOC](#table-of-contents)
+
+### Access Control (ACL)
+
+By default a Proxy-Wasm filter can ask the host to reach any IP address or
+hostname through `proxy_set_upstream`, `proxy_dispatch_http_call`, and the
+`resolve` foreign function. 
+
+The `acl` block inside `wasm{}` allows creating a named allowlist
+of IP ranges and hostnames. Filters opt in to a named ACL via the
+`proxy_wasm ... acl=name` parameter; a filter without `acl=` stays
+unrestricted.
+
+```nginx
+wasm {
+    module my_plugin /path/to/plugin.wasm;
+
+    acl internal_only {
+        allow       10.0.0.0/8;
+        allow       192.168.0.0/16;
+        allow_host  api.internal.corp;
+        allow_host  *.internal.corp;
+
+        deny        10.0.0.13;          
+        deny_host   evil.internal.corp;
+    }
+
+    acl public_api {
+        allow_host  *.api.example.net;
+    }
+}
+
+# server config
+location /a {
+    proxy_wasm my_plugin acl=internal_only;
+}
+location /b {
+    proxy_wasm my_plugin acl=public_api;
+}
+```
+
+**Rules**
+
+| Directive    | Argument            | Meaning                                                                                                     |
+|--------------|---------------------|-------------------------------------------------------------------------------------------------------------|
+| `allow`      | IP or CIDR          | Permits destinations whose address falls in the range. Accepts IPv4 and IPv6.                               |
+| `deny`       | IP or CIDR          | Blocks destinations in the range, even when the address came from an allowed hostname. |
+| `allow_host` | hostname or pattern | Permits `resolve(name)` and `dispatch_http_call(name)`. Exact match, or `*.suffix` for any subdomain of `suffix`. |
+| `deny_host`  | hostname or pattern | Blocks hostnames. Same pattern syntax.                                        |
+
+Wildcards are supported in hostnames. This uses nginx's standard wildcard matcher — the same one behind                                                                                                                                                                                                    
+`server_name`. See the nginx docs on [server_names_hash](https://nginx.org/en/docs/http/server_names.html)                                                                                                                                                                                                
+for the underlying matching algorithm.
+
+When an `acl` ruleset is defined for a plugin, the `proxy_set_upstream`, `proxy_dispatch_http_call`, and 
+`resolve` hostcalls may only use the allowed IPs and hostnames to send requests.
+
+If an allowed hostname is resolved to an IP address, that address is added to the IP allowlist for that particular 
+to allow using it for upstream selection.
 
 [Back to TOC](#table-of-contents)
 
@@ -1211,6 +1293,7 @@ Proxy-Wasm SDK.
 [HTTP Dispatches]: #http-dispatches
 [Foreign Functions]: #foreign-functions
 [Upstream Selection]: #upstream-selection
+[Access Control (ACL)]: #access-control-acl
 [Supported Specifications]: #supported-specifications
 [Supported Properties]: #supported-properties
 [Examples]: #examples
