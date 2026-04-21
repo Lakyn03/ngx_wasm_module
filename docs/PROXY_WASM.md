@@ -873,17 +873,16 @@ location /b {
 
 **Rules**
 
-| Directive    | Argument            | Meaning                                                                                                       |
-|--------------|---------------------|---------------------------------------------------------------------------------------------------------------|
-| `allow`      | IP or CIDR          | Permits destinations whose address falls in the range. Accepts IPv4 and IPv6.                                 |
-| `deny`       | IP or CIDR          | Blocks destinations in the range, even when the address came from an allowed hostname. Evaluated before `allow`. |
+| Directive    | Argument            | Meaning                                                                                                     |
+|--------------|---------------------|-------------------------------------------------------------------------------------------------------------|
+| `allow`      | IP or CIDR          | Permits destinations whose address falls in the range. Accepts IPv4 and IPv6.                               |
+| `deny`       | IP or CIDR          | Blocks destinations in the range, even when the address came from an allowed hostname. |
 | `allow_host` | hostname or pattern | Permits `resolve(name)` and `dispatch_http_call(name)`. Exact match, or `*.suffix` for any subdomain of `suffix`. |
-| `deny_host`  | hostname or pattern | Blocks hostnames. Evaluated before `allow_host`. Same pattern syntax.                                         |
+| `deny_host`  | hostname or pattern | Blocks hostnames. Same pattern syntax.                                        |
 
-`deny` / `deny_host` always take precedence over `allow` / `allow_host`. The wildcard form `*.example.com`
-matches any subdomain (`api.example.com`, `a.b.example.com`) but not the bare
-apex (`example.com`). Only a single leading-label wildcard is supported; bare
-`*` and patterns with multiple `*` are rejected at config load.
+Wildcards are supported in hostnames. This uses nginx's standard wildcard matcher — the same one behind                                                                                                                                                                                                    
+`server_name`. See the nginx docs on [server_names_hash](https://nginx.org/en/docs/http/server_names.html)                                                                                                                                                                                                
+for the underlying matching algorithm.
 
 When an `acl` ruleset is defined for a plugin, the `proxy_set_upstream`, `proxy_dispatch_http_call`, and 
 `resolve` hostcalls may only use the allowed IPs and hostnames to send requests.

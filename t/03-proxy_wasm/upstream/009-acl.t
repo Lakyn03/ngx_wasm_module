@@ -4,7 +4,7 @@ use strict;
 use lib '.';
 use t::TestWasmX;
 
-plan tests => 86;
+plan tests => 103;
 run_tests();
 
 __DATA__
@@ -463,22 +463,6 @@ resolve forbidden
 
 
 
-=== TEST 21: parsing - bare "*" rejected as invalid wildcard
---- wasm_modules: hostcalls
---- wasm_acl
-    acl bad_wildcard {
-        allow_host *;
-    }
---- config
-    location /t {
-        return 200;
-    }
---- must_die
---- error_log eval
-qr/\[emerg\].*?\[wasm\] invalid wildcard hostname "\*"/
-
-
-
 === TEST 22: runtime - allow_host wildcard accepts subdomain
 --- wasm_modules: hostcalls
 --- wasm_acl
@@ -572,4 +556,131 @@ qr/resolve forbidden: "api\.foo\.com"/
 --- error_log eval
 qr/resolve forbidden: "db\.internal\.example\.com"/
 --- no_error_log
+[emerg]
+
+
+
+=== TEST 27: runtime - hostname match is case-insensitive
+--- wasm_modules: hostcalls
+--- wasm_acl
+    acl ci {
+        allow_host API.Example.COM;
+    }
+--- config
+    resolver 127.0.0.1:1953 ipv6=off;
+    resolver_timeout 100ms;
+    location /t {
+        proxy_wasm hostcalls 'test=/t/resolve name=api.example.com' acl=ci;
+        return 200;
+    }
+--- no_error_log
+resolve forbidden
+[emerg]
+
+
+
+=== TEST 28: runtime - exact deny_host overrides wildcard allow_host
+--- wasm_modules: hostcalls
+--- wasm_acl
+    acl exact_wins {
+        allow_host *.example.com;
+        deny_host  api.example.com;
+    }
+--- config
+    location /t {
+        proxy_wasm hostcalls 'test=/t/resolve name=api.example.com' acl=exact_wins;
+        return 200;
+    }
+--- error_code: 500
+--- error_log eval
+qr/resolve forbidden: "api\.example\.com"/
+--- no_error_log
+[emerg]
+
+
+
+=== TEST 29: parsing - same host in allow and deny is rejected
+--- wasm_modules: hostcalls
+--- wasm_acl
+    acl conflict {
+        allow_host foo.com;
+        deny_host  foo.com;
+    }
+--- config
+    location /t {
+        return 200;
+    }
+--- must_die
+--- error_log eval
+qr/\[emerg\].*duplicate host "foo\.com" in acl/
+
+
+
+=== TEST 30: parsing - wildcard in middle of hostname is rejected
+--- wasm_modules: hostcalls
+--- wasm_acl
+    acl bad_middle {
+        allow_host api.*.internal;
+    }
+--- config
+    location /t {
+        return 200;
+    }
+--- must_die
+--- error_log eval
+qr/\[emerg\].*invalid wildcard host "api\.\*\.internal"/
+
+
+
+=== TEST 31: runtime - tail wildcard matches across TLDs
+--- wasm_modules: hostcalls
+--- wasm_acl
+    acl tail {
+        allow_host example.*;
+    }
+--- config
+    resolver 127.0.0.1:1953 ipv6=off;
+    resolver_timeout 100ms;
+    location /t {
+        proxy_wasm hostcalls 'test=/t/resolve name=example.test' acl=tail;
+        return 200;
+    }
+--- no_error_log
+resolve forbidden
+[emerg]
+
+
+
+=== TEST 32: runtime - host:port strips port before ACL lookup
+--- wasm_modules: hostcalls
+--- wasm_acl
+    acl hp {
+        allow_host api.example.com;
+    }
+--- config
+    resolver 127.0.0.1:1953 ipv6=off;
+    resolver_timeout 100ms;
+    location /t {
+        proxy_wasm hostcalls 'test=/t/dispatch_http_call host=api.example.com:8443' acl=hp;
+        return 200;
+    }
+--- no_error_log
+dispatch forbidden
+[emerg]
+
+
+
+=== TEST 33: runtime - bracketed IPv6 target strips brackets and port
+--- wasm_modules: hostcalls
+--- wasm_acl
+    acl v6_allow {
+        allow ::1/128;
+    }
+--- config
+    location /t {
+        proxy_wasm hostcalls 'test=/t/dispatch_http_call host=[::1]:65534' acl=v6_allow;
+        return 200;
+    }
+--- no_error_log
+dispatch forbidden
 [emerg]

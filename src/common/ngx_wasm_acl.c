@@ -5,11 +5,13 @@
 
 #include <ngx_wasm_acl.h>
 
+static const ngx_wasm_acl_type_e  ngx_wasm_acl_allow_tag = NGX_WASM_ACL_ALLOW;
+static const ngx_wasm_acl_type_e  ngx_wasm_acl_deny_tag  = NGX_WASM_ACL_DENY;
 
 ngx_wasm_acl_ctx_t *
 ngx_wasm_acl_find_ctx(ngx_cycle_t *cycle, ngx_str_t *name)
 {
-    size_t i;
+    ngx_uint_t              i;
     ngx_wasm_acl_ctx_t    **acls;
     ngx_wasm_core_conf_t  *wcf;
 
@@ -48,6 +50,138 @@ ngx_wasm_acl_init(ngx_wasm_acl_t *acl, ngx_wasm_acl_ctx_t *ctx,
 }
 
 
+static int ngx_libc_cdecl
+ngx_wasm_acl_dns_wildcards(const void *one, const void *two)
+{
+    ngx_hash_key_t  *first, *second;
+
+    first = (ngx_hash_key_t *) one;
+    second = (ngx_hash_key_t *) two;
+
+    return ngx_dns_strcmp(first->key.data, second->key.data);
+}
+
+
+ngx_int_t
+ngx_wasm_acl_ctx_init(ngx_conf_t *cf, ngx_wasm_acl_ctx_t *acl_ctx)
+{
+    u_char                     *name;
+    ngx_int_t                   rc;
+    ngx_uint_t                  i, flag, name_len;
+    ngx_hash_init_t             hinit;
+    ngx_wasm_acl_host_t        *entries;
+    ngx_hash_keys_arrays_t      ha;
+    const ngx_wasm_acl_type_e  *type;
+
+    name_len = sizeof("acl_hosts[") - 1 + acl_ctx->name.len + sizeof("]");
+    name = ngx_pnalloc(cf->pool, name_len);
+    if (name == NULL) {
+        return NGX_ERROR;
+
+    }
+
+    ngx_sprintf(name, "acl_hosts[%V]%Z", &acl_ctx->name);
+
+    hinit.name = (char *) name;
+    hinit.hash = &acl_ctx->hosts_hash.hash;
+    hinit.key = ngx_hash_key_lc;
+    hinit.max_size = 512;
+    hinit.bucket_size = ngx_align(256, ngx_cacheline_size);
+    hinit.pool = cf->pool;
+    hinit.temp_pool = cf->temp_pool;
+
+    ngx_memzero(&ha, sizeof(ngx_hash_keys_arrays_t));
+    ha.pool = cf->pool;
+    ha.temp_pool = cf->temp_pool;
+
+    if (ngx_hash_keys_array_init(&ha, NGX_HASH_SMALL) != NGX_OK) {
+        return NGX_ERROR;
+    }
+
+    entries = acl_ctx->hosts_arr.elts;
+
+    for (i = 0; i < acl_ctx->hosts_arr.nelts; i++) {
+        if (entries[i].wildcard) {
+            flag = NGX_HASH_WILDCARD_KEY;
+        } else {
+            flag = 0;
+        }
+
+        switch (entries[i].type) {
+        case NGX_WASM_ACL_ALLOW:
+            type = &ngx_wasm_acl_allow_tag;
+            break;
+
+        case NGX_WASM_ACL_DENY:
+            type = &ngx_wasm_acl_deny_tag;
+            break;
+        }
+
+        rc = ngx_hash_add_key(&ha, &entries[i].host,
+                              (void *) type, flag);
+        if (rc == NGX_BUSY) {
+              ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
+                                 "duplicate host \"%V\" in acl",
+                                 &entries[i].host);
+              return NGX_ERROR;
+          }
+        if (rc == NGX_DECLINED) {
+            ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
+                             "invalid wildcard host \"%V\" in acl",
+                               &entries[i].host);
+            return NGX_ERROR;
+        }
+        if (rc != NGX_OK) {
+            return NGX_ERROR;
+        }
+    }
+
+    if (ngx_hash_init(&hinit, ha.keys.elts, ha.keys.nelts) != NGX_OK) {
+        return NGX_ERROR;
+    }
+
+    if (ha.dns_wc_tail.nelts) {
+        ngx_qsort(ha.dns_wc_tail.elts,
+                  (size_t) ha.dns_wc_tail.nelts,
+                  sizeof(ngx_hash_key_t),
+                  ngx_wasm_acl_dns_wildcards);
+
+        hinit.hash = NULL;
+        hinit.temp_pool = ha.temp_pool;
+
+        if (ngx_hash_wildcard_init(&hinit, ha.dns_wc_tail.elts,
+                                   ha.dns_wc_tail.nelts)
+            != NGX_OK)
+        {
+            return NGX_ERROR;
+        }
+
+        acl_ctx->hosts_hash.wc_tail = (ngx_hash_wildcard_t *) hinit.hash;
+    }
+
+    if (ha.dns_wc_head.nelts) {
+        ngx_qsort(ha.dns_wc_head.elts,
+                  (size_t) ha.dns_wc_head.nelts,
+                  sizeof(ngx_hash_key_t),
+                  ngx_wasm_acl_dns_wildcards);
+
+        hinit.hash = NULL;
+        hinit.temp_pool = ha.temp_pool;
+
+        if (ngx_hash_wildcard_init(&hinit, ha.dns_wc_head.elts,
+                                   ha.dns_wc_head.nelts)
+            != NGX_OK)
+        {
+            return NGX_ERROR;
+        }
+
+        acl_ctx->hosts_hash.wc_head = (ngx_hash_wildcard_t *) hinit.hash;
+    }
+
+    return NGX_OK;
+}
+
+
 ngx_int_t
 ngx_wasm_acl_check_addr(ngx_wasm_acl_t *acl, struct sockaddr *addr)
 {
@@ -67,47 +201,22 @@ ngx_wasm_acl_check_addr(ngx_wasm_acl_t *acl, struct sockaddr *addr)
 }
 
 
-static ngx_int_t
-ngx_wasm_acl_host_list_match(ngx_array_t *list, ngx_str_t *host)
-{
-    size_t                i;
-    ngx_wasm_acl_host_t  *entries;
-
-    entries = list->elts;
-
-    for (i = 0; i < list->nelts; i++) {
-        if (entries[i].wildcard) {
-            if (host->len > entries[i].name.len
-                && ngx_strncasecmp(host->data + host->len - entries[i].name.len,
-                                   entries[i].name.data,
-                                   entries[i].name.len) == 0)
-            {
-                return NGX_OK;
-            }
-
-        } else {
-            if (entries[i].name.len == host->len
-                && ngx_strncasecmp(entries[i].name.data,
-                                   host->data, host->len) == 0)
-            {
-                return NGX_OK;
-            }
-        }
-    }
-
-    return NGX_DECLINED;
-}
-
-
 ngx_int_t
 ngx_wasm_acl_check_host(ngx_wasm_acl_t *acl, ngx_str_t *host)
 {
-    u_char          *p;
-    in_addr_t        v4;
-    ngx_str_t        name;
-    ngx_sockaddr_t   sa;
+    u_char               *p;
+    in_addr_t             v4;
+    ngx_str_t             name;
+    ngx_uint_t            key;
+    ngx_sockaddr_t        sa;
+    ngx_wasm_acl_type_e  *type;
+    u_char                buf[NGX_MAXHOSTNAMELEN];
 
-    if (host->len > 0 && host->data[0] == '[') {
+    if (host->len == 0) {
+        return NGX_ERROR;
+    }
+
+    if (host->data[0] == '[') {
         p = ngx_strlchr(host->data, host->data + host->len, ']');
         if (p == NULL) {
             return NGX_DECLINED;
@@ -140,11 +249,24 @@ ngx_wasm_acl_check_host(ngx_wasm_acl_t *acl, ngx_str_t *host)
     }
 #endif
 
-    if (ngx_wasm_acl_host_list_match(&acl->ctx->deny_hosts, &name) == NGX_OK) {
+    if (name.len == 0 || name.len > sizeof(buf)) {
         return NGX_DECLINED;
     }
 
-    return ngx_wasm_acl_host_list_match(&acl->ctx->allow_hosts, &name);
+    ngx_strlow(buf, name.data, name.len);
+    key = ngx_hash_key_lc(buf, name.len);
+
+    type = ngx_hash_find_combined(&acl->ctx->hosts_hash, key, buf, name.len);
+    if (type == NULL) {
+        return NGX_DECLINED;
+    }
+
+    switch (*type) {
+    case NGX_WASM_ACL_ALLOW: return NGX_OK;
+    case NGX_WASM_ACL_DENY: return NGX_DECLINED;
+    }
+
+    return NGX_DECLINED;
 }
 
 

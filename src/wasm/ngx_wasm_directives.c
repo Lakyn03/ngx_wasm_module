@@ -108,14 +108,7 @@ ngx_wasm_acl_block(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
         return NGX_CONF_ERROR;
     }
 
-    if (ngx_array_init(&acl_ctx->allow_hosts, cf->pool, 4,
-                       sizeof(ngx_wasm_acl_host_t))
-        != NGX_OK)
-    {
-        return NGX_CONF_ERROR;
-    }
-
-    if (ngx_array_init(&acl_ctx->deny_hosts, cf->pool, 4,
+    if (ngx_array_init(&acl_ctx->hosts_arr, cf->pool, 4,
                        sizeof(ngx_wasm_acl_host_t))
         != NGX_OK)
     {
@@ -134,6 +127,10 @@ ngx_wasm_acl_block(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
     cf->ctx = acl_ctx;
 
     rv = ngx_conf_parse(cf, NULL);
+
+    if (ngx_wasm_acl_ctx_init(cf, acl_ctx) != NGX_OK) {
+        return NGX_CONF_ERROR;
+    }
 
     *cf = save;
 
@@ -175,58 +172,44 @@ ngx_wasm_acl_addr_rule(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 char *
 ngx_wasm_acl_host_rule(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 {
-    ngx_str_t             *args, pattern;
-    ngx_uint_t             wildcard;
-    ngx_array_t           *hosts;
+    ngx_str_t             *args;
     ngx_wasm_acl_ctx_t    *acl_ctx;
     ngx_wasm_acl_host_t   *slot;
 
     acl_ctx = cf->ctx;
     args = cf->args->elts;
-    pattern = args[1];
-    wildcard = 0;
 
-    if (pattern.len == 0) {
+    if (args[1].len == 0) {
         ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
                            "[wasm] empty hostname in \"%V\" directive",
                            &cmd->name);
         return NGX_CONF_ERROR;
     }
 
-    if (pattern.data[0] == '*') {
-        if (pattern.len < 3 || pattern.data[1] != '.') {
-            ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
-                               "[wasm] invalid wildcard hostname \"%V\": "
-                               "expected \"*.suffix\"", &pattern);
-            return NGX_CONF_ERROR;
-        }
-
-        if (ngx_strlchr(pattern.data + 1, pattern.data + pattern.len, '*')
-            != NULL)
-        {
-            ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
-                               "[wasm] hostname \"%V\" has multiple "
-                               "wildcards", &pattern);
-            return NGX_CONF_ERROR;
-        }
-
-        wildcard = 1;
-        pattern.data += 1;
-        pattern.len -= 1;
+    if (args[1].len > 255) {
+        ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
+                           "[wasm] hostname \"%V\" exceeds 255 characters (RFC 1035)",
+                           &args[1]);
+        return NGX_CONF_ERROR;
     }
 
-    ngx_strlow(pattern.data, pattern.data, pattern.len);
-
-    hosts = (cmd->name.data[0] == 'a') ? &acl_ctx->allow_hosts
-                                       : &acl_ctx->deny_hosts;
-
-    slot = ngx_array_push(hosts);
+    slot = ngx_array_push(&acl_ctx->hosts_arr);
     if (slot == NULL) {
         return NGX_CONF_ERROR;
     }
 
-    slot->name = pattern;
-    slot->wildcard = wildcard;
+    if (ngx_strlchr(args[1].data, args[1].data + args[1].len, '*')
+        != NULL)
+    {
+        slot->wildcard = 1;
+    } else {
+        slot->wildcard = 0;
+    }
+
+    slot->type = (cmd->name.data[0] == 'a') ? NGX_WASM_ACL_ALLOW
+                                            : NGX_WASM_ACL_DENY;
+
+    slot->host = args[1];
 
     return NGX_CONF_OK;
 }
