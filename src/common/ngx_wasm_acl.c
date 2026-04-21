@@ -183,14 +183,80 @@ ngx_wasm_acl_ctx_init(ngx_conf_t *cf, ngx_wasm_acl_ctx_t *acl_ctx)
 
 
 ngx_int_t
-ngx_wasm_acl_check_addr(ngx_wasm_acl_t *acl, struct sockaddr *addr)
+ngx_wasm_acl_ctx_insert_cidr(ngx_wasm_acl_ctx_t *acl_ctx, ngx_cidr_t *cidr, ngx_wasm_acl_type_e type)
 {
-    if (ngx_cidr_match(addr, &acl->ctx->deny_addrs) == NGX_OK) {
-        return NGX_DECLINED;
+    uintptr_t  v;
+
+    switch (type) {
+    case NGX_WASM_ACL_ALLOW:
+        v = (uintptr_t) &ngx_wasm_acl_allow_tag;
+        break;
+
+    case NGX_WASM_ACL_DENY:
+        v = (uintptr_t) &ngx_wasm_acl_deny_tag;
+        break;
+
+    default:
+        return NGX_ERROR;
     }
 
-    if (ngx_cidr_match(addr, &acl->ctx->allow_addrs) == NGX_OK) {
-        return NGX_OK;
+    switch (cidr->family) {
+#if (NGX_HAVE_INET6)
+    case AF_INET6:
+        return ngx_radix128tree_insert(acl_ctx->addrs_v6, cidr->u.in6.addr.s6_addr,
+                                     cidr->u.in6.mask.s6_addr, v);
+
+#endif
+    default:
+        cidr->u.in.addr = ntohl(cidr->u.in.addr);
+        cidr->u.in.mask = ntohl(cidr->u.in.mask);
+
+        return ngx_radix32tree_insert(acl_ctx->addrs_v4, cidr->u.in.addr,
+                                      cidr->u.in.mask, v);
+    }
+}
+
+
+static uintptr_t
+ngx_wasm_acl_tree_lookup(ngx_wasm_acl_ctx_t *ctx, struct sockaddr *addr)
+{
+    u_char   *p6;
+    uint32_t  v4;
+
+    switch (addr->sa_family) {
+
+#if (NGX_HAVE_INET6)
+    case AF_INET6:
+        p6 = ((struct sockaddr_in6 *) addr)->sin6_addr.s6_addr;
+        return ngx_radix128tree_find(ctx->addrs_v6, p6);
+#endif
+
+    case AF_INET:
+        v4 = ntohl(((struct sockaddr_in *) addr)->sin_addr.s_addr);
+        return ngx_radix32tree_find(ctx->addrs_v4, v4);
+
+    default:
+        return NGX_RADIX_NO_VALUE;
+    }
+}
+
+
+ngx_int_t
+ngx_wasm_acl_check_addr(ngx_wasm_acl_t *acl, struct sockaddr *addr)
+{
+    uintptr_t                   v;
+    const ngx_wasm_acl_type_e  *type;
+
+    v = ngx_wasm_acl_tree_lookup(acl->ctx, addr);
+
+    if (v != NGX_RADIX_NO_VALUE) {
+        type = (const ngx_wasm_acl_type_e *) v;
+        switch (*type) {
+        case NGX_WASM_ACL_ALLOW:
+            return NGX_OK;
+        case NGX_WASM_ACL_DENY:
+            return NGX_DECLINED;
+        }
     }
 
     if (ngx_cidr_match(addr, &acl->recorded_addrs) == NGX_OK) {
@@ -298,10 +364,17 @@ ngx_wasm_sockaddr_to_cidr(struct sockaddr *sa, ngx_cidr_t *cidr)
 ngx_int_t
 ngx_wasm_acl_add_addr(ngx_wasm_acl_t *acl, struct sockaddr *addr)
 {
-    ngx_cidr_t  cidr, *slot;
+    uintptr_t                   v;
+    ngx_cidr_t                  cidr, *slot;
+    const ngx_wasm_acl_type_e  *type;
 
-    if (ngx_cidr_match(addr, &acl->ctx->deny_addrs) == NGX_OK) {
-        return NGX_DECLINED;
+    v = ngx_wasm_acl_tree_lookup(acl->ctx, addr);
+
+    if (v != NGX_RADIX_NO_VALUE) {
+        type = (const ngx_wasm_acl_type_e  *) v;
+        if (*type == NGX_WASM_ACL_DENY) {
+            return NGX_DECLINED;
+        }
     }
 
     if (ngx_wasm_sockaddr_to_cidr(addr, &cidr) != NGX_OK) {

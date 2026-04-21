@@ -96,15 +96,13 @@ ngx_wasm_acl_block(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
     acl_ctx->name = *name;
 
-    if (ngx_array_init(&acl_ctx->allow_addrs, cf->pool, 4, sizeof(ngx_cidr_t))
-        != NGX_OK)
-    {
+    acl_ctx->addrs_v4 = ngx_radix_tree_create(cf->pool, -1);
+    if (acl_ctx->addrs_v4 == NULL) {
         return NGX_CONF_ERROR;
     }
 
-    if (ngx_array_init(&acl_ctx->deny_addrs, cf->pool, 4, sizeof(ngx_cidr_t))
-        != NGX_OK)
-    {
+    acl_ctx->addrs_v6 = ngx_radix_tree_create(cf->pool, -1);
+    if (acl_ctx->addrs_v6 == NULL) {
         return NGX_CONF_ERROR;
     }
 
@@ -141,16 +139,14 @@ ngx_wasm_acl_block(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 char *
 ngx_wasm_acl_addr_rule(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 {
-    ngx_str_t           *args;
-    ngx_cidr_t           cidr, *slot;
-    ngx_array_t         *addrs;
-    ngx_wasm_acl_ctx_t  *acl_ctx;
+    ngx_int_t             rc;
+    ngx_str_t            *args;
+    ngx_cidr_t            cidr;
+    ngx_wasm_acl_ctx_t   *acl_ctx;
+    ngx_wasm_acl_type_e   type;
 
     acl_ctx = cf->ctx;
     args = cf->args->elts;
-
-    addrs = (cmd->name.data[0] == 'a') ? &acl_ctx->allow_addrs
-                                       : &acl_ctx->deny_addrs;
 
     if (ngx_ptocidr(&args[1], &cidr) == NGX_ERROR) {
         ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
@@ -158,12 +154,18 @@ ngx_wasm_acl_addr_rule(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
         return NGX_CONF_ERROR;
     }
 
-    slot = ngx_array_push(addrs);
-    if (slot == NULL) {
+    type = (cmd->name.data[0] == 'a') ? NGX_WASM_ACL_ALLOW
+                                      : NGX_WASM_ACL_DENY;
+
+    rc = ngx_wasm_acl_ctx_insert_cidr(acl_ctx, &cidr, type);
+    if (rc != NGX_OK) {
+        if (rc == NGX_BUSY) {
+            ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
+                               "duplicate CIDR \"%V\"",
+                               &args[1]);
+        }
         return NGX_CONF_ERROR;
     }
-
-    *slot = cidr;
 
     return NGX_CONF_OK;
 }

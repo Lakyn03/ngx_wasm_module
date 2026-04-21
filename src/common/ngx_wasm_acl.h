@@ -21,8 +21,8 @@ typedef struct {
 
 struct ngx_wasm_acl_ctx_s {
     ngx_str_t              name;
-    ngx_array_t            allow_addrs;     /* ngx_cidr_t */
-    ngx_array_t            deny_addrs;      /* ngx_cidr_t */
+    ngx_radix_tree_t      *addrs_v4;
+    ngx_radix_tree_t      *addrs_v6;
     ngx_array_t            hosts_arr;       /* ngx_wasm_acl_host_t */
     ngx_hash_combined_t    hosts_hash;
 };
@@ -39,6 +39,8 @@ ngx_wasm_acl_ctx_t *ngx_wasm_acl_find_ctx(ngx_cycle_t *cycle, ngx_str_t *name);
 ngx_int_t ngx_wasm_acl_init(ngx_wasm_acl_t *acl, ngx_wasm_acl_ctx_t *ctx,
     ngx_pool_t *pool);
 ngx_int_t ngx_wasm_acl_ctx_init(ngx_conf_t *cf, ngx_wasm_acl_ctx_t *ctx);
+ngx_int_t ngx_wasm_acl_ctx_insert_cidr(ngx_wasm_acl_ctx_t *acl_ctx, ngx_cidr_t *cidr,
+    ngx_wasm_acl_type_e type);
 ngx_int_t ngx_wasm_acl_check_addr(ngx_wasm_acl_t *acl, struct sockaddr *addr);
 ngx_int_t ngx_wasm_acl_check_host(ngx_wasm_acl_t *acl, ngx_str_t *host);
 ngx_int_t ngx_wasm_acl_add_addr(ngx_wasm_acl_t *acl, struct sockaddr *addr);
